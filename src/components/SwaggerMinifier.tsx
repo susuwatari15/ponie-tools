@@ -1,5 +1,13 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, Copy, Download, Search, Upload } from "lucide-react";
+import {
+	AlertTriangle,
+	Check,
+	Copy,
+	Download,
+	Save,
+	Search,
+	Upload,
+} from "lucide-react";
 import type {
 	EndpointItem,
 	OpenApiDocument,
@@ -11,11 +19,27 @@ import {
 	minifySwagger,
 } from "../utils/swaggerMinifier";
 
+const RAW_JSON_STORAGE_KEY = "swagger-minifier-raw-json";
+
+function readStoredRawJson(): string | null {
+	if (typeof window === "undefined") return null;
+	try {
+		return localStorage.getItem(RAW_JSON_STORAGE_KEY);
+	} catch {
+		return null;
+	}
+}
+
 const SwaggerMinifier: React.FC<SwaggerMinifierProps> = ({
 	initialJson = "",
 	className = "",
 }) => {
-	const [rawJson, setRawJson] = useState(initialJson);
+	const [rawJson, setRawJson] = useState(() => {
+		const stored = readStoredRawJson();
+		if (stored !== null) return stored;
+		return initialJson;
+	});
+	const [savedToStorage, setSavedToStorage] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [copied, setCopied] = useState(false);
@@ -135,6 +159,16 @@ const SwaggerMinifier: React.FC<SwaggerMinifierProps> = ({
 		event.target.value = "";
 	};
 
+	const onSaveToLocalStorage = () => {
+		try {
+			localStorage.setItem(RAW_JSON_STORAGE_KEY, rawJson);
+			setSavedToStorage(true);
+			window.setTimeout(() => setSavedToStorage(false), 1500);
+		} catch {
+			setSavedToStorage(false);
+		}
+	};
+
 	const onFetchFromUrl = async () => {
 		setUrlFetchError("");
 		setIsFetchingUrl(true);
@@ -213,6 +247,18 @@ const SwaggerMinifier: React.FC<SwaggerMinifierProps> = ({
 											className="hidden"
 										/>
 									</label>
+									<button
+										type="button"
+										onClick={onSaveToLocalStorage}
+										className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs text-slate-100 transition hover:border-slate-400"
+									>
+										{savedToStorage ? (
+											<Check className="h-4 w-4 text-emerald-300" />
+										) : (
+											<Save className="h-4 w-4" />
+										)}
+										{savedToStorage ? "Saved" : "Save to browser"}
+									</button>
 								</div>
 							</>
 						) : (
