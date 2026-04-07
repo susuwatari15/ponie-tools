@@ -13,10 +13,7 @@ import {
 } from "../utils/swaggerMinifier";
 import { filterEndpointsByQuery } from "../utils/endpointFilter";
 import { parseOpenApiInput } from "../utils/openApiInput";
-import {
-	readStoredRawJson,
-	writeRawJsonToStorage,
-} from "../utils/swaggerRawJsonStorage";
+import { readStoredRawJson } from "../utils/swaggerRawJsonStorage";
 
 export function useSwaggerMinifier(initialJson: string) {
 	const [rawJson, setRawJson] = useState(() => {
@@ -24,7 +21,6 @@ export function useSwaggerMinifier(initialJson: string) {
 		if (stored !== null) return stored;
 		return initialJson;
 	});
-	const [savedToStorage, setSavedToStorage] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [copied, setCopied] = useState(false);
@@ -126,16 +122,6 @@ export function useSwaggerMinifier(initialJson: string) {
 		event.target.value = "";
 	};
 
-	const onSaveToLocalStorage = () => {
-		try {
-			writeRawJsonToStorage(rawJson);
-			setSavedToStorage(true);
-			window.setTimeout(() => setSavedToStorage(false), 1500);
-		} catch {
-			setSavedToStorage(false);
-		}
-	};
-
 	const onFetchFromUrl = async () => {
 		setUrlFetchError("");
 		setIsFetchingUrl(true);
@@ -155,7 +141,6 @@ export function useSwaggerMinifier(initialJson: string) {
 	return {
 		rawJson,
 		setRawJson,
-		savedToStorage,
 		searchQuery,
 		setSearchQuery,
 		selectedIds,
@@ -180,7 +165,8 @@ export function useSwaggerMinifier(initialJson: string) {
 		toggleSelectAllVisible,
 		onCopy,
 		onFileUpload,
-		onSaveToLocalStorage,
 		onFetchFromUrl,
 	};
 }
+
+export type SwaggerMinifierController = ReturnType<typeof useSwaggerMinifier>;

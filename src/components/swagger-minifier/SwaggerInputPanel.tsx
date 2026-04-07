@@ -14,8 +14,7 @@ type SwaggerInputPanelProps = {
 	rawJson: string;
 	onRawJsonChange: (value: string) => void;
 	onFileUpload: (event: ChangeEvent<HTMLInputElement>) => void;
-	onSaveToLocalStorage: () => void;
-	savedToStorage: boolean;
+	onSnapshotSaved?: () => void;
 	swaggerUrl: string;
 	onSwaggerUrlChange: (value: string) => void;
 	username: string;
@@ -43,8 +42,7 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 	rawJson,
 	onRawJsonChange,
 	onFileUpload,
-	onSaveToLocalStorage,
-	savedToStorage,
+	onSnapshotSaved,
 	swaggerUrl,
 	onSwaggerUrlChange,
 	username,
@@ -77,8 +75,7 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 					rawJson={rawJson}
 					onRawJsonChange={onRawJsonChange}
 					onFileUpload={onFileUpload}
-					onSaveToLocalStorage={onSaveToLocalStorage}
-					savedToStorage={savedToStorage}
+					onSnapshotSaved={onSnapshotSaved}
 				/>
 			) : (
 				<SwaggerUrlFetchForm

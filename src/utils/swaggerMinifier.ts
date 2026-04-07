@@ -112,7 +112,7 @@ export const schemaToTs = (
 
 const toEndpointId = (method: HttpMethod, path: string): string => `${method.toUpperCase()} ${path}`;
 
-const parseEndpointId = (id: string): { method: HttpMethod; path: string } | null => {
+export const parseEndpointId = (id: string): { method: HttpMethod; path: string } | null => {
   const [methodToken, ...pathTokens] = id.split(' ');
   if (!methodToken || pathTokens.length === 0) return null;
 
@@ -271,6 +271,20 @@ export const minifySwaggerObject = (selectedEndpointIds: string[], doc: OpenApiD
   }
 
   return output;
+};
+
+export const getMinifiedOperationForEndpoint = (
+  id: string,
+  doc: OpenApiDocument
+): MinifiedOperation | undefined => {
+  const parsed = parseEndpointId(id);
+  if (!parsed) return undefined;
+
+  const minified = minifySwaggerObject([id], doc);
+  const pathItem = minified.paths[parsed.path];
+  if (!pathItem) return undefined;
+
+  return pathItem[parsed.method];
 };
 
 export const minifySwagger = (selectedEndpointIds: string[], doc: OpenApiDocument): string =>

@@ -122,8 +122,3 @@ export interface MinifiedSwagger {
   };
   paths: Record<string, MinifiedPathItem>;
 }
-
-export interface SwaggerMinifierProps {
-  initialJson?: string;
-  className?: string;
-}

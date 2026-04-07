@@ -1,20 +1,19 @@
-import { Check, Save, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
 import type { ChangeEvent, FC } from "react";
+import { SaveSnapshotForm } from "./SaveSnapshotForm";
 
 type SwaggerManualJsonInputProps = {
 	rawJson: string;
 	onRawJsonChange: (value: string) => void;
 	onFileUpload: (event: ChangeEvent<HTMLInputElement>) => void;
-	onSaveToLocalStorage: () => void;
-	savedToStorage: boolean;
+	onSnapshotSaved?: () => void;
 };
 
 export const SwaggerManualJsonInput: FC<SwaggerManualJsonInputProps> = ({
 	rawJson,
 	onRawJsonChange,
 	onFileUpload,
-	onSaveToLocalStorage,
-	savedToStorage,
+	onSnapshotSaved,
 }) => (
 	<>
 		<textarea
@@ -35,18 +34,8 @@ export const SwaggerManualJsonInput: FC<SwaggerManualJsonInputProps> = ({
 					className="hidden"
 				/>
 			</label>
-			<button
-				type="button"
-				onClick={onSaveToLocalStorage}
-				className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs text-slate-100 transition hover:border-slate-400"
-			>
-				{savedToStorage ? (
-					<Check className="h-4 w-4 text-emerald-300" />
-				) : (
-					<Save className="h-4 w-4" />
-				)}
-				{savedToStorage ? "Saved" : "Save to browser"}
-			</button>
 		</div>
+
+		<SaveSnapshotForm rawJson={rawJson} onSaved={onSnapshotSaved} />
 	</>
 );
