@@ -1,10 +1,17 @@
+import { Navigate, Route, Routes } from "react-router-dom";
+import { AppLayout } from "./components/AppLayout";
+import { PermissionDiffPlaceholder } from "./components/PermissionDiffPlaceholder";
 import { SwaggerWorkspace } from "./components/SwaggerWorkspace";
 
 const App = () => {
 	return (
-		<main className="min-h-screen p-4 lg:p-8">
-			<SwaggerWorkspace className="mx-auto max-w-7xl" />
-		</main>
+		<Routes>
+			<Route element={<AppLayout />}>
+				<Route index element={<SwaggerWorkspace />} />
+				<Route path="permission-diff" element={<PermissionDiffPlaceholder />} />
+				<Route path="*" element={<Navigate to="/" replace />} />
+			</Route>
+		</Routes>
 	);
 };
 
