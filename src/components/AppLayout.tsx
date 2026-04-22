@@ -19,6 +19,9 @@ export const AppLayout: FC = () => {
 						<NavLink to="/" end className={navClassName}>
 							Swagger Minifier
 						</NavLink>
+						<NavLink to="/swagger-compare" className={navClassName}>
+							Swagger Compare
+						</NavLink>
 						<NavLink to="/permission-diff" className={navClassName}>
 							Permission Diff
 						</NavLink>
@@ -30,6 +33,9 @@ export const AppLayout: FC = () => {
 						<nav className="flex flex-col gap-2 p-4" aria-label="Main">
 							<NavLink to="/" end className={navClassName}>
 								Swagger Minifier
+							</NavLink>
+							<NavLink to="/swagger-compare" className={navClassName}>
+								Swagger Compare
 							</NavLink>
 							<NavLink to="/permission-diff" className={navClassName}>
 								Permission Diff

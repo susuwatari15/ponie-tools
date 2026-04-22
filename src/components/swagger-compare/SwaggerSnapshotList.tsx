@@ -27,7 +27,7 @@ export const SwaggerSnapshotList: FC<SwaggerSnapshotListProps> = ({
 	if (snapshots.length === 0) {
 		return (
 			<p className="text-sm text-slate-500">
-				No snapshots yet. Use the Minifier tab and &quot;Save snapshot&quot; to store a version
+				No snapshots yet. Use Swagger Minifier and &quot;Save snapshot&quot; to store a version
 				here.
 			</p>
 		);
