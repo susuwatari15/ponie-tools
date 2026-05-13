@@ -20,7 +20,7 @@ export const TextDiffUnified: FC<TextDiffUnifiedProps> = ({
 	oldText,
 	newText,
 }) => {
-	const [mode, setMode] = useState<DiffMode>("lines");
+	const [mode, setMode] = useState<DiffMode>("chars");
 	const rows = buildUnifiedDiffLines(oldText, newText);
 	const combinedLen = oldText.length + newText.length;
 	const showCharMode = combinedLen <= CHAR_DIFF_MAX_COMBINED;
