@@ -5,7 +5,7 @@ import { mutedText, panelClasses, themeClasses } from "./styles";
 
 export const PermissionDiffPage: FC = () => {
   return (
-    <div className={`w-full space-y-4 p-4 lg:p-6 ${themeClasses}`}>
+    <div className={`w-full space-y-4 p-4 lg:p-4 ${themeClasses}`}>
       <PageHeader
         wrapperClassName={`rounded-xl border px-4 py-3 ${panelClasses}`}
         title="Permission Diff Viewer"
