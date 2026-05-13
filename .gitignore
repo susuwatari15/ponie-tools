@@ -32,3 +32,7 @@ Thumbs.db
 
 # misc
 *.local
+
+.pnpm-store
+.pnpm-store/
+.pnpm-store*

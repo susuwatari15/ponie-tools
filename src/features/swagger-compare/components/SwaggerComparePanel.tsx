@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { Check } from "lucide-react";
 import type { FC } from "react";
 import { useState } from "react";
 import type { SavedSnapshot } from "../../../utils/swaggerSavedSnapshotsStorage";
@@ -6,7 +7,11 @@ import {
 	getSnapshot,
 	removeSnapshot,
 } from "../../../utils/swaggerSavedSnapshotsStorage";
-import { compareOpenApiRawJson, type OpenApiCompareResult } from "../../../utils/openApiCompare";
+import {
+	buildNewChangedClipboardText,
+	compareOpenApiRawJson,
+	type OpenApiCompareResult,
+} from "../../../utils/openApiCompare";
 import { SwaggerCompareResults } from "./SwaggerCompareResults";
 import { SwaggerSnapshotList } from "./SwaggerSnapshotList";
 
@@ -15,6 +20,8 @@ type SwaggerComparePanelProps = {
 	onSnapshotsChange: () => void;
 	onLoadSnapshot: (rawJson: string) => void;
 	onSwitchToMinifier: () => void;
+	initialSnapshotIdA?: string;
+	initialSnapshotIdB?: string;
 };
 
 export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
@@ -22,10 +29,15 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
 	onSnapshotsChange,
 	onLoadSnapshot,
 	onSwitchToMinifier,
+	initialSnapshotIdA = "",
+	initialSnapshotIdB = "",
 }) => {
-	const [idA, setIdA] = useState("");
-	const [idB, setIdB] = useState("");
+	const [idA, setIdA] = useState(initialSnapshotIdA);
+	const [idB, setIdB] = useState(initialSnapshotIdB);
 	const [compareResult, setCompareResult] = useState<OpenApiCompareResult | null>(null);
+	const [copyNewChangedStatus, setCopyNewChangedStatus] = useState<"idle" | "copied" | "failed">(
+		"idle"
+	);
 
 	const options = snapshots.map((s) => (
 		<option key={s.id} value={s.id}>
@@ -44,21 +56,25 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
 		if (idA === id) setIdA("");
 		if (idB === id) setIdB("");
 		setCompareResult(null);
+		setCopyNewChangedStatus("idle");
 	};
 
 	const selectAsA = (id: string) => {
 		setIdA(id);
 		setCompareResult(null);
+		setCopyNewChangedStatus("idle");
 		if (idB === id) setIdB("");
 	};
 
 	const selectAsB = (id: string) => {
 		setIdB(id);
 		setCompareResult(null);
+		setCopyNewChangedStatus("idle");
 		if (idA === id) setIdA("");
 	};
 
 	const handleCompare = () => {
+		setCopyNewChangedStatus("idle");
 		if (!idA || !idB || idA === idB) {
 			setCompareResult({
 				ok: false,
@@ -79,6 +95,30 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
 			labelB: snapB.name,
 		});
 		setCompareResult(result);
+	};
+
+	const snapBForCopy = idB ? getSnapshot(idB) : undefined;
+	const canCopyNewAndChanged =
+		compareResult?.ok === true &&
+		compareResult.added.length + compareResult.changed.length > 0 &&
+		Boolean(snapBForCopy?.rawJson);
+
+	const handleCopyNewAndChanged = async (format: "full" | "short") => {
+		if (!compareResult?.ok || !snapBForCopy?.rawJson) return;
+		const text = buildNewChangedClipboardText(compareResult, snapBForCopy.rawJson, format);
+		if (text === null) {
+			setCopyNewChangedStatus("failed");
+			window.setTimeout(() => setCopyNewChangedStatus("idle"), 2000);
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(text);
+			setCopyNewChangedStatus("copied");
+			window.setTimeout(() => setCopyNewChangedStatus("idle"), 2000);
+		} catch {
+			setCopyNewChangedStatus("failed");
+			window.setTimeout(() => setCopyNewChangedStatus("idle"), 2000);
+		}
 	};
 
 	return (
@@ -105,7 +145,7 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
 				<div>
 					<h2 className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-200">Compare two versions</h2>
 					<div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-						<label className="flex min-w-[160px] flex-1 flex-col gap-1">
+						{/* <label className="flex min-w-[160px] flex-1 flex-col gap-1">
 							<span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
 								Version A (baseline)
 							</span>
@@ -114,6 +154,7 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
 								onChange={(e) => {
 									setIdA(e.target.value);
 									setCompareResult(null);
+									setCopyNewChangedStatus("idle");
 								}}
 								className="rounded-md border border-slate-300 bg-white px-2 py-2 text-xs text-slate-900 outline-none focus:border-accent dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-200"
 							>
@@ -130,13 +171,14 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
 								onChange={(e) => {
 									setIdB(e.target.value);
 									setCompareResult(null);
+									setCopyNewChangedStatus("idle");
 								}}
 								className="rounded-md border border-slate-300 bg-white px-2 py-2 text-xs text-slate-900 outline-none focus:border-accent dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-200"
 							>
 								<option value="">Select snapshot…</option>
 								{options}
 							</select>
-						</label>
+						</label> */}
 						<button
 							type="button"
 							onClick={handleCompare}
@@ -145,6 +187,39 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
 						>
 							Compare
 						</button>
+						<div className="flex items-center gap-2">
+							{copyNewChangedStatus === "copied" ? (
+								<span className="inline-flex items-center gap-1.5 rounded-md border border-slate-400 bg-slate-100 px-3 py-2 text-xs text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
+									<Check className="h-4 w-4 text-emerald-300" aria-hidden />
+									Copied!
+								</span>
+							) : copyNewChangedStatus === "failed" ? (
+								<span className="rounded-md border border-rose-400 bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:border-rose-700/60 dark:bg-rose-950/40 dark:text-rose-200">
+									Copy failed
+								</span>
+							) : (
+								<div className="flex flex-wrap gap-1.5">
+									<button
+										type="button"
+										disabled={!canCopyNewAndChanged}
+										title="Uses last compare results and current Version B snapshot. Re-run Compare after changing versions."
+										onClick={() => void handleCopyNewAndChanged("full")}
+										className="rounded-md border border-slate-400 bg-slate-100 px-2.5 py-2 text-xs text-slate-800 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400"
+									>
+										Full (JSON)
+									</button>
+									<button
+										type="button"
+										disabled={!canCopyNewAndChanged}
+										title="Uses last compare results and current Version B snapshot. Re-run Compare after changing versions."
+										onClick={() => void handleCopyNewAndChanged("short")}
+										className="rounded-md border border-slate-400 bg-slate-100 px-2.5 py-2 text-xs text-slate-800 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400"
+									>
+										Short version
+									</button>
+								</div>
+							)}
+						</div>
 					</div>
 				</div>
 

@@ -1,6 +1,8 @@
 import type { ChangeEvent, FC } from "react";
+import { GitCompare } from "lucide-react";
 import type { EndpointItem } from "../../../types/openapi";
 import type { ParsedOpenApiInput } from "../../../utils/openApiInput";
+import { panelClasses } from "../styles";
 import { SwaggerEndpointList } from "./SwaggerEndpointList";
 import { SwaggerEndpointSearch } from "./SwaggerEndpointSearch";
 import { SwaggerInputModeToggle } from "./SwaggerInputModeToggle";
@@ -15,6 +17,7 @@ type SwaggerInputPanelProps = {
 	onRawJsonChange: (value: string) => void;
 	onFileUpload: (event: ChangeEvent<HTMLInputElement>) => void;
 	onSnapshotSaved?: () => void;
+	onNavigateToCompareLatest?: () => void;
 	swaggerUrl: string;
 	onSwaggerUrlChange: (value: string) => void;
 	username: string;
@@ -43,6 +46,7 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 	onRawJsonChange,
 	onFileUpload,
 	onSnapshotSaved,
+	onNavigateToCompareLatest,
 	swaggerUrl,
 	onSwaggerUrlChange,
 	username,
@@ -63,12 +67,12 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 	selectedIds,
 	onToggleSelection,
 }) => (
-	<section className="flex min-h-[640px] flex-col overflow-hidden rounded-xl border border-slate-300 bg-white/90 shadow-sm dark:border-slate-700/70 dark:bg-panel/75 dark:shadow-none">
+	<section className={`flex min-h-[640px] flex-col overflow-hidden rounded-xl border ${panelClasses}`}>
 		<div className="border-b border-slate-200 p-3 dark:border-slate-700/70">
-			<SwaggerInputModeToggle
+			{/* <SwaggerInputModeToggle
 				inputMode={inputMode}
 				onModeChange={onInputModeChange}
-			/>
+			/> */}
 
 			{inputMode === "manual" ? (
 				<SwaggerManualJsonInput
@@ -96,6 +100,19 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 				endpointCount={allEndpoints.length}
 				hasDoc={Boolean(parsed.doc)}
 			/>
+
+			{onNavigateToCompareLatest ? (
+				<div className="mt-3 flex flex-wrap">
+					<button
+						type="button"
+						onClick={onNavigateToCompareLatest}
+						className="inline-flex items-center gap-2 rounded-md border border-slate-400 bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-800 transition hover:border-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400"
+					>
+						<GitCompare className="h-4 w-4 shrink-0" aria-hidden />
+						Compare to latest version
+					</button>
+				</div>
+			) : null}
 		</div>
 
 		<SwaggerEndpointSearch
