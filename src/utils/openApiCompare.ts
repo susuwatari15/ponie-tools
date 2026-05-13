@@ -1,6 +1,11 @@
 import type { MinifiedOperation, OpenApiDocument } from "../types/openapi";
-import { buildEndpointIndex, getMinifiedOperationForEndpoint } from "./swaggerMinifier";
+import {
+	buildEndpointIndex,
+	getMinifiedOperationForEndpoint,
+	minifySwagger,
+} from "./swaggerMinifier";
 import { parseOpenApiInput } from "./openApiInput";
+import { formatSwaggerEndpointsShort, type SwaggerCopyFormat } from "./swaggerShortFormat";
 
 export type EndpointPresence = {
 	id: string;
@@ -29,6 +34,8 @@ export type OpenApiCompareResult =
 			error: string;
 			side?: "a" | "b";
 	  };
+
+export type OpenApiCompareOk = Extract<OpenApiCompareResult, { ok: true }>;
 
 function stableSerializeOp(op: MinifiedOperation | undefined): string {
 	return JSON.stringify(op ?? null);
@@ -107,4 +114,39 @@ export function compareOpenApiRawJson(
 		removed,
 		changed,
 	};
+}
+
+/** Minified JSON (same shape as Swagger Minifier output) for endpoints new or changed in B. */
+export function buildMinifiedNewAndChangedFromVersionB(
+	result: OpenApiCompareOk,
+	rawJsonB: string
+): string | null {
+	const parsedB = parseOpenApiInput(rawJsonB.trim());
+	if (parsedB.error || !parsedB.doc) return null;
+
+	const ids = [
+		...result.added.map((a) => a.id),
+		...result.changed.map((c) => c.id),
+	];
+	return minifySwagger(ids, parsedB.doc);
+}
+
+/** Clipboard text for new/changed endpoints in B: full minified JSON or short list. */
+export function buildNewChangedClipboardText(
+	result: OpenApiCompareOk,
+	rawJsonB: string,
+	format: SwaggerCopyFormat
+): string | null {
+	if (format === "full") {
+		return buildMinifiedNewAndChangedFromVersionB(result, rawJsonB);
+	}
+
+	const parsedB = parseOpenApiInput(rawJsonB.trim());
+	if (parsedB.error || !parsedB.doc) return null;
+
+	const ids = [
+		...result.added.map((a) => a.id),
+		...result.changed.map((c) => c.id),
+	];
+	return formatSwaggerEndpointsShort(parsedB.doc, ids);
 }

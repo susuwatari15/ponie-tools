@@ -1,6 +1,7 @@
 import type { FC } from "react";
-import type { SwaggerMinifierController } from "../hooks/useSwaggerMinifier";
 import { PageHeader } from "../../../components/layout/PageHeader";
+import type { SwaggerMinifierController } from "../hooks/useSwaggerMinifier";
+import { mutedText, panelClasses, themeClasses } from "../styles";
 import { SwaggerCompressedOutput } from "./SwaggerCompressedOutput";
 import { SwaggerInputPanel } from "./SwaggerInputPanel";
 
@@ -9,6 +10,7 @@ export type SwaggerMinifierProps = {
 	className?: string;
 	onSnapshotSaved?: () => void;
 	embedded?: boolean;
+	onNavigateToCompareLatest?: () => void;
 };
 
 const SwaggerMinifier: FC<SwaggerMinifierProps> = ({
@@ -16,9 +18,10 @@ const SwaggerMinifier: FC<SwaggerMinifierProps> = ({
 	className = "",
 	onSnapshotSaved,
 	embedded = false,
+	onNavigateToCompareLatest,
 }) => {
 	const inner = (
-		<div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2 lg:p-6">
+		<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 			<SwaggerInputPanel
 				inputMode={m.inputMode}
 				onInputModeChange={m.setInputMode}
@@ -26,6 +29,7 @@ const SwaggerMinifier: FC<SwaggerMinifierProps> = ({
 				onRawJsonChange={m.setRawJson}
 				onFileUpload={m.onFileUpload}
 				onSnapshotSaved={onSnapshotSaved}
+				onNavigateToCompareLatest={onNavigateToCompareLatest}
 				swaggerUrl={m.swaggerUrl}
 				onSwaggerUrlChange={m.setSwaggerUrl}
 				username={m.username}
@@ -51,8 +55,9 @@ const SwaggerMinifier: FC<SwaggerMinifierProps> = ({
 				hasParseError={Boolean(m.parsed.error)}
 				selectedCount={m.selectedCount}
 				minifiedOutput={m.minifiedOutput}
+				minifiedOutputShort={m.minifiedOutputShort}
 				copied={m.copied}
-				onCopy={m.onCopy}
+				onCopyFormat={m.onCopyFormat}
 			/>
 		</div>
 	);
@@ -62,16 +67,14 @@ const SwaggerMinifier: FC<SwaggerMinifierProps> = ({
 	}
 
 	return (
-		<div
-			className={`w-full overflow-hidden rounded-2xl border border-slate-200 bg-white/95 text-slate-900 shadow-glow backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/80 dark:text-slate-100 ${className}`}
-		>
+		<div className={`w-full space-y-4 p-4 lg:p-6 ${themeClasses} ${className}`}>
 			<PageHeader
 				title="Swagger Minifier"
 				titleAs="h1"
-				titleClassName="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100"
+				titleClassName="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-100"
 				description="Select only the endpoints you need and generate a compact, prompt-ready swagger view."
-				descriptionClassName="mt-1 text-sm text-slate-600 dark:text-slate-400"
-				wrapperClassName="rounded-none border-0 border-b border-slate-200 bg-white/95 px-4 py-4 dark:border-slate-700/70 dark:bg-slate-900/80 lg:px-6"
+				descriptionClassName={`text-sm ${mutedText}`}
+				wrapperClassName={`rounded-xl border px-4 py-3 ${panelClasses}`}
 			/>
 			{inner}
 		</div>

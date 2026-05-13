@@ -81,3 +81,16 @@ export function removeSnapshot(id: string): void {
 export function getSnapshot(id: string): SavedSnapshot | undefined {
 	return listSnapshots().find((s) => s.id === id);
 }
+
+/** Newest snapshot first. Returns baseline (older) and latest (newer) ids for compare. */
+export function getLatestTwoSnapshotIdsForCompare():
+	| { versionA: string; versionB: string }
+	| null {
+	const sorted = listSnapshots().slice().sort((a, b) => {
+		const tb = new Date(b.createdAt).getTime();
+		const ta = new Date(a.createdAt).getTime();
+		return tb - ta;
+	});
+	if (sorted.length < 2) return null;
+	return { versionA: sorted[1].id, versionB: sorted[0].id };
+}

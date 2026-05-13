@@ -14,6 +14,7 @@ import {
 import { filterEndpointsByQuery } from "../../../utils/endpointFilter";
 import { parseOpenApiInput } from "../../../utils/openApiInput";
 import { readStoredRawJson } from "../../../utils/swaggerRawJsonStorage";
+import { formatSwaggerEndpointsShort, type SwaggerCopyFormat } from "../../../utils/swaggerShortFormat";
 
 export function useSwaggerMinifier(initialJson: string) {
 	const [rawJson, setRawJson] = useState(() => {
@@ -67,6 +68,11 @@ export function useSwaggerMinifier(initialJson: string) {
 		return minifySwagger(Array.from(selectedIds), parsed.doc);
 	}, [parsed.doc, parsed.error, selectedIds]);
 
+	const minifiedOutputShort = useMemo(() => {
+		if (!parsed.doc || parsed.error || selectedIds.size === 0) return "";
+		return formatSwaggerEndpointsShort(parsed.doc, Array.from(selectedIds));
+	}, [parsed.doc, parsed.error, selectedIds]);
+
 	const selectedCount = selectedIds.size;
 	const visibleAllSelected =
 		filteredEndpoints.length > 0 &&
@@ -101,11 +107,12 @@ export function useSwaggerMinifier(initialJson: string) {
 		});
 	};
 
-	const onCopy = async () => {
-		if (!minifiedOutput) return;
+	const onCopyFormat = async (format: SwaggerCopyFormat) => {
+		const text = format === "full" ? minifiedOutput : minifiedOutputShort;
+		if (!text) return;
 
 		try {
-			await navigator.clipboard.writeText(minifiedOutput);
+			await navigator.clipboard.writeText(text);
 			setCopied(true);
 			window.setTimeout(() => setCopied(false), 1500);
 		} catch {
@@ -159,11 +166,12 @@ export function useSwaggerMinifier(initialJson: string) {
 		allEndpoints,
 		filteredEndpoints,
 		minifiedOutput,
+		minifiedOutputShort,
 		selectedCount,
 		visibleAllSelected,
 		toggleSelection,
 		toggleSelectAllVisible,
-		onCopy,
+		onCopyFormat,
 		onFileUpload,
 		onFetchFromUrl,
 	};
