@@ -1,10 +1,12 @@
+"use client";
+
 import {
 	createContext,
 	type FC,
 	type ReactNode,
 	useCallback,
 	useContext,
-	useLayoutEffect,
+	useEffect,
 	useMemo,
 	useState,
 } from "react";
@@ -27,7 +29,7 @@ export const ThemeProvider: FC<{ children: ReactNode }> = ({ children }) => {
 		readStoredResolvedTheme(),
 	);
 
-	useLayoutEffect(() => {
+	useEffect(() => {
 		document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
 	}, [resolvedTheme]);
 

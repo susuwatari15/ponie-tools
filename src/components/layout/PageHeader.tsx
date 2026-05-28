@@ -1,3 +1,5 @@
+"use client";
+
 import { Moon, Sun } from "lucide-react";
 import type { FC, ReactNode } from "react";
 import { useTheme } from "./ThemeProvider";

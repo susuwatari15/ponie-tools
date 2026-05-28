@@ -2,14 +2,14 @@ import type { LucideIcon } from "lucide-react";
 import { Braces, GitCompare, ShieldCheck } from "lucide-react";
 
 export type NavItem = {
-	to: string;
+	href: string;
 	end?: boolean;
 	label: string;
 	icon: LucideIcon;
 };
 
 export const WORKSPACE_NAV_ITEMS: NavItem[] = [
-	{ to: "/", end: true, label: "Swagger Minifier", icon: Braces },
-	{ to: "/swagger-compare", label: "Swagger Compare", icon: GitCompare },
-	{ to: "/permission-diff", label: "Permission Diff", icon: ShieldCheck },
+	{ href: "/", end: true, label: "Swagger Minifier", icon: Braces },
+	{ href: "/swagger-compare", label: "Swagger Compare", icon: GitCompare },
+	{ href: "/permission-diff", label: "Permission Diff", icon: ShieldCheck },
 ];
