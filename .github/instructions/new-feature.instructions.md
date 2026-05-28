@@ -6,53 +6,71 @@ description: "Use when creating a new feature page, adding a new tool/utility to
 ## Feature Folder Structure
 
 ```
-src/features/<feature-name>/
-├── index.tsx              # Page component (exported, add route in App.tsx)
+src/app/<feature-slug>/
+├── page.tsx               # Page component (default export, "use client")
 ├── styles.ts              # Tailwind class constants
 ├── types.ts               # Feature-specific types
-├── components/            # Feature UI components
+├── _components/           # Feature UI components (private folder)
 │   └── FeatureView.tsx
-├── hooks/
+├── _hooks/
 │   └── use<Feature>.ts   # Controller hook
-├── lib/                   # Feature utilities
-└── constants/             # Feature constants/sample data
+├── _lib/                  # Feature utilities
+└── _constants/            # Feature constants/sample data
 ```
 
 ## Wiring Checklist
 
-1. Create the feature folder under `src/features/<name>/`
-2. Create `hooks/use<Feature>.ts` — controller hook with all state
+1. Create the feature folder under `src/app/<feature-slug>/`
+2. Create `_hooks/use<Feature>.ts` — controller hook with all state
 3. Create `styles.ts` with `themeClasses`, `panelClasses`, `mutedText` at minimum
 4. Create `types.ts` if the feature has domain types
-5. Create components in `components/`
-6. Create `index.tsx` that exports the page component (named export: `<Feature>Page`)
-7. Add route in `src/App.tsx`
-8. Add nav item in `src/components/layout/constants/nav-items.ts`
+5. Create components in `_components/`
+6. Create `page.tsx` with default export and `"use client"` directive
+7. Add nav item in `src/components/layout/constants/nav-items.ts`
 
 ## Page Component Template
 
 ```tsx
-import type { FC } from "react";
-import { PageHeader } from "../../components/layout/PageHeader";
-import { use<Feature> } from "./hooks/use<Feature>";
-import { themeClasses } from "./styles";
+"use client";
 
-export const <Feature>Page: FC = () => {
+import type { FC } from "react";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { use<Feature> } from "./_hooks/use<Feature>";
+import { themeClasses, panelClasses, mutedText } from "./styles";
+
+const <Feature>Page: FC = () => {
   const m = use<Feature>();
 
   return (
-    <div className={themeClasses}>
-      <PageHeader title="Feature Name" subtitle="Description" />
+    <div className={`w-full space-y-4 p-4 lg:p-4 ${themeClasses}`}>
+      <PageHeader
+        wrapperClassName={`rounded-xl border px-4 py-3 ${panelClasses}`}
+        title="Feature Name"
+        description="Description"
+        titleClassName="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-100"
+        descriptionClassName={`text-sm ${mutedText}`}
+      />
       <FeatureView m={m} />
     </div>
   );
 };
+
+export default <Feature>Page;
 ```
 
-## Route Addition (App.tsx)
+## Nav Item Addition
 
-```tsx
-import { <Feature>Page } from "./features/<feature-name>";
-// Inside <Route element={<AppLayout />}>:
-<Route path="<feature-slug>" element={<<Feature>Page />} />
+```ts
+// src/components/layout/constants/nav-items.ts
+import { IconName } from "lucide-react";
+
+// Add to WORKSPACE_NAV_ITEMS array:
+{ href: "/<feature-slug>", label: "Feature Name", icon: IconName },
 ```
+
+## Notes
+
+- Use private folders (`_components/`, `_hooks/`, `_lib/`, `_constants/`) — Next.js excludes these from routing
+- Use `@/*` path alias for imports from `src/`
+- Wrap components using `useSearchParams()` in `<Suspense>` boundaries
+- Use Next.js Route Handlers in `src/app/api/` for any server-side logic

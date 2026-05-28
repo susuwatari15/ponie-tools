@@ -20,7 +20,7 @@ Always provide both light AND dark variants. Never leave a color without its dar
 
 ## Custom Theme Colors
 
-Defined in `tailwind.config.ts` — use these for brand-consistent styling:
+Defined in `tailwind.config.ts` (content scans `src/app/`, `src/components/`, `src/lib/`) — use these for brand-consistent styling:
 
 - `base` (#070A14) — deepest background
 - `panel` (#101A31) — card/panel backgrounds
