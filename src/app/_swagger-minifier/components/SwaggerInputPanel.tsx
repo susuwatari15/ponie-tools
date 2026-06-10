@@ -2,6 +2,7 @@ import type { ChangeEvent, FC } from "react";
 import { GitCompare } from "lucide-react";
 import type { EndpointItem } from "@/types/openapi";
 import type { ParsedOpenApiInput } from "@/lib/openApiInput";
+import type { SwaggerProfile } from "@/lib/swaggerProfilesStorage";
 import { panelClasses } from "../styles";
 import { SwaggerEndpointList } from "./SwaggerEndpointList";
 import { SwaggerEndpointSearch } from "./SwaggerEndpointSearch";
@@ -18,15 +19,28 @@ type SwaggerInputPanelProps = {
 	onFileUpload: (event: ChangeEvent<HTMLInputElement>) => void;
 	onSnapshotSaved?: () => void;
 	onNavigateToCompareLatest?: () => void;
-	swaggerUrl: string;
-	onSwaggerUrlChange: (value: string) => void;
-	username: string;
-	onUsernameChange: (value: string) => void;
-	password: string;
-	onPasswordChange: (value: string) => void;
 	isFetchingUrl: boolean;
 	urlFetchError: string;
 	onFetchFromUrl: () => void;
+	profiles: SwaggerProfile[];
+	selectedProfile: SwaggerProfile | null;
+	onSelectProfile: (id: string | null) => void;
+	onCreateProfile: (input: {
+		name: string;
+		color: string;
+		url: string;
+		username: string;
+		password: string;
+	}) =>
+		| { ok: true; profile: SwaggerProfile }
+		| { ok: false; error: string };
+	onEditProfile: (
+		id: string,
+		patch: Partial<Omit<SwaggerProfile, "id">>,
+	) =>
+		| { ok: true; profile: SwaggerProfile }
+		| { ok: false; error: string };
+	onDeleteProfile: (id: string) => void;
 	parsed: ParsedOpenApiInput;
 	allEndpoints: EndpointItem[];
 	searchQuery: string;
@@ -47,15 +61,15 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 	onFileUpload,
 	onSnapshotSaved,
 	onNavigateToCompareLatest,
-	swaggerUrl,
-	onSwaggerUrlChange,
-	username,
-	onUsernameChange,
-	password,
-	onPasswordChange,
 	isFetchingUrl,
 	urlFetchError,
 	onFetchFromUrl,
+	profiles,
+	selectedProfile,
+	onSelectProfile,
+	onCreateProfile,
+	onEditProfile,
+	onDeleteProfile,
 	parsed,
 	allEndpoints,
 	searchQuery,
@@ -83,17 +97,17 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 				/>
 			) : (
 				<SwaggerUrlFetchForm
-					swaggerUrl={swaggerUrl}
-					onSwaggerUrlChange={onSwaggerUrlChange}
-					username={username}
-					onUsernameChange={onUsernameChange}
-					password={password}
-					onPasswordChange={onPasswordChange}
 					isFetchingUrl={isFetchingUrl}
 					urlFetchError={urlFetchError}
 					onFetchFromUrl={onFetchFromUrl}
 					rawJson={rawJson}
 					onSnapshotSaved={onSnapshotSaved}
+					profiles={profiles}
+					selectedProfile={selectedProfile}
+					onSelectProfile={onSelectProfile}
+					onCreateProfile={onCreateProfile}
+					onEditProfile={onEditProfile}
+					onDeleteProfile={onDeleteProfile}
 				/>
 			)}
 

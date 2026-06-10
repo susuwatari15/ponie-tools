@@ -49,6 +49,18 @@ export const SwaggerSnapshotList: FC<SwaggerSnapshotListProps> = ({
 						<div className="flex flex-wrap items-start justify-between gap-2">
 							<div className="min-w-0 flex-1">
 								<div className="flex flex-wrap items-center gap-2">
+									{snap.profileColor ? (
+										<span
+											className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/10"
+											style={{ backgroundColor: snap.profileColor }}
+											title={snap.profileName ?? "Profile"}
+											aria-label={
+												snap.profileName
+													? `Profile ${snap.profileName}`
+													: "Profile color"
+											}
+										/>
+									) : null}
 									<span className="truncate font-medium text-slate-900 dark:text-slate-100">
 										{snap.name}
 									</span>

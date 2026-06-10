@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { Check, RefreshCw, Save } from "lucide-react";
 import type { FC } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { parseOpenApiInput } from "@/lib/openApiInput";
@@ -18,21 +18,39 @@ type SnapshotFormValues = z.infer<typeof snapshotSchema>;
 type SaveSnapshotFormProps = {
   rawJson: string;
   onSaved?: () => void;
+  profileName?: string;
+  profileColor?: string;
 };
+
+function buildDefaultName(profileName?: string): string {
+  const timestamp = format(new Date(), "yyyy-MM-dd HH:mm:ss");
+  const trimmed = profileName?.trim();
+  return trimmed ? `${trimmed} - ${timestamp}` : timestamp;
+}
 
 export const SaveSnapshotForm: FC<SaveSnapshotFormProps> = ({
   rawJson,
   onSaved,
+  profileName,
+  profileColor,
 }) => {
   const form = useForm<SnapshotFormValues>({
     resolver: zodResolver(snapshotSchema),
     defaultValues: {
-      name: format(new Date(), "yyyy-MM-dd HH:mm:ss"),
+      name: buildDefaultName(profileName),
     },
   });
 
   const [saved, setSaved] = useState(false);
   const [submitError, setSubmitError] = useState<string>("");
+
+  // Re-initialize the snapshot name whenever the selected profile changes.
+  useEffect(() => {
+    form.setValue("name", buildDefaultName(profileName), {
+      shouldValidate: true,
+    });
+    form.clearErrors("name");
+  }, [profileName]);
 
   function submit(values: SnapshotFormValues) {
     const parsed = parseOpenApiInput(rawJson);
@@ -41,7 +59,12 @@ export const SaveSnapshotForm: FC<SaveSnapshotFormProps> = ({
       return;
     }
 
-    const result = addSnapshot({ name: values.name, rawJson });
+    const result = addSnapshot({
+      name: values.name,
+      rawJson,
+      profileName: profileName?.trim() || undefined,
+      profileColor: profileColor || undefined,
+    });
     if (!result.ok) {
       const message =
         result.error === "quota"
@@ -64,7 +87,7 @@ export const SaveSnapshotForm: FC<SaveSnapshotFormProps> = ({
   }
 
   const renewName = () => {
-    const next = format(new Date(), "yyyy-MM-dd HH:mm:ss");
+    const next = buildDefaultName(profileName);
     form.setValue("name", next, { shouldValidate: true, shouldDirty: true });
     form.clearErrors("name");
   };
