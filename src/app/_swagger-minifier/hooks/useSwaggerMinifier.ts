@@ -14,8 +14,16 @@ import {
 import { filterEndpointsByQuery } from "@/lib/endpointFilter";
 import { parseOpenApiInput } from "@/lib/openApiInput";
 import { readStoredRawJson } from "@/lib/swaggerRawJsonStorage";
-import { readStoredSwaggerUrlConfig, writeSwaggerUrlConfigToStorage } from "@/lib/swaggerUrlStorage";
 import { formatSwaggerEndpointsShort, type SwaggerCopyFormat } from "@/lib/swaggerShortFormat";
+import {
+	addProfile,
+	listProfiles,
+	readSelectedProfileId,
+	removeProfile,
+	type SwaggerProfile,
+	updateProfile,
+	writeSelectedProfileId,
+} from "@/lib/swaggerProfilesStorage";
 
 export function useSwaggerMinifier(initialJson: string) {
 	const [rawJson, setRawJson] = useState(() => {
@@ -26,28 +34,61 @@ export function useSwaggerMinifier(initialJson: string) {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [copied, setCopied] = useState(false);
-	const [inputMode, setInputMode] = useState<"manual" | "url">(() => {
-		const stored = readStoredSwaggerUrlConfig();
-		return stored?.url ? "url" : "manual";
-	});
-	const [swaggerUrl, setSwaggerUrl] = useState(() => {
-		const stored = readStoredSwaggerUrlConfig();
-		return stored?.url ?? "";
-	});
-	const [username, setUsername] = useState(() => {
-		const stored = readStoredSwaggerUrlConfig();
-		return stored?.username ?? "";
-	});
-	const [password, setPassword] = useState(() => {
-		const stored = readStoredSwaggerUrlConfig();
-		return stored?.password ?? "";
-	});
+	const [inputMode, setInputMode] = useState<"manual" | "url">(() =>
+		readSelectedProfileId() ? "url" : "manual",
+	);
 	const [isFetchingUrl, setIsFetchingUrl] = useState(false);
 	const [urlFetchError, setUrlFetchError] = useState("");
 
+	const [profiles, setProfiles] = useState<SwaggerProfile[]>(() => listProfiles());
+	const [selectedProfileId, setSelectedProfileId] = useState<string | null>(() =>
+		readSelectedProfileId(),
+	);
+
+	const selectedProfile = useMemo(
+		() => profiles.find((profile) => profile.id === selectedProfileId) ?? null,
+		[profiles, selectedProfileId],
+	);
+
 	useEffect(() => {
-		writeSwaggerUrlConfigToStorage({ url: swaggerUrl, username, password });
-	}, [swaggerUrl, username, password]);
+		writeSelectedProfileId(selectedProfileId);
+	}, [selectedProfileId]);
+
+	const selectProfile = (id: string | null) => {
+		setSelectedProfileId(id);
+	};
+
+	const createProfile = (input: {
+		name: string;
+		color: string;
+		url: string;
+		username: string;
+		password: string;
+	}) => {
+		const result = addProfile(input);
+		if (result.ok) {
+			setProfiles(listProfiles());
+			setSelectedProfileId(result.profile.id);
+		}
+		return result;
+	};
+
+	const editProfile = (
+		id: string,
+		patch: Partial<Omit<SwaggerProfile, "id">>,
+	) => {
+		const result = updateProfile(id, patch);
+		if (result.ok) {
+			setProfiles(listProfiles());
+		}
+		return result;
+	};
+
+	const deleteProfile = (id: string) => {
+		removeProfile(id);
+		setProfiles(listProfiles());
+		setSelectedProfileId((previous) => (previous === id ? null : previous));
+	};
 
 	const deferredRawJson = useDeferredValue(rawJson);
 	const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -147,11 +188,20 @@ export function useSwaggerMinifier(initialJson: string) {
 	};
 
 	const onFetchFromUrl = async () => {
+		if (!selectedProfile || !selectedProfile.url.trim()) {
+			setUrlFetchError("Select a profile with a Swagger URL first.");
+			return;
+		}
+
 		setUrlFetchError("");
 		setIsFetchingUrl(true);
 
 		try {
-			const fetchedJson = await fetchSwaggerFromUrl(swaggerUrl, username, password);
+			const fetchedJson = await fetchSwaggerFromUrl(
+				selectedProfile.url,
+				selectedProfile.username,
+				selectedProfile.password,
+			);
 			setRawJson(fetchedJson);
 		} catch (error) {
 			const message =
@@ -171,14 +221,14 @@ export function useSwaggerMinifier(initialJson: string) {
 		copied,
 		inputMode,
 		setInputMode,
-		swaggerUrl,
-		setSwaggerUrl,
-		username,
-		setUsername,
-		password,
-		setPassword,
 		isFetchingUrl,
 		urlFetchError,
+		profiles,
+		selectedProfile,
+		selectProfile,
+		createProfile,
+		editProfile,
+		deleteProfile,
 		parsed,
 		allEndpoints,
 		filteredEndpoints,

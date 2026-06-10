@@ -5,6 +5,8 @@ export type SavedSnapshot = {
 	name: string;
 	createdAt: string;
 	rawJson: string;
+	profileName?: string;
+	profileColor?: string;
 };
 
 function parseStored(raw: string | null): SavedSnapshot[] {
@@ -44,12 +46,16 @@ export type AddSnapshotError = "quota" | "unknown";
 export function addSnapshot(input: {
 	name: string;
 	rawJson: string;
+	profileName?: string;
+	profileColor?: string;
 }): { ok: true; snapshot: SavedSnapshot } | { ok: false; error: AddSnapshotError } {
 	const snapshot: SavedSnapshot = {
 		id: crypto.randomUUID(),
 		name: input.name.trim(),
 		createdAt: new Date().toISOString(),
 		rawJson: input.rawJson,
+		...(input.profileName ? { profileName: input.profileName } : {}),
+		...(input.profileColor ? { profileColor: input.profileColor } : {}),
 	};
 
 	const next = [...listSnapshots(), snapshot];
