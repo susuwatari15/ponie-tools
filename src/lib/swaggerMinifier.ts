@@ -1,4 +1,5 @@
 import type {
+  CompressedSchema,
   EndpointItem,
   HttpMethod,
   MinifiedOperation,
@@ -110,6 +111,106 @@ export const schemaToTs = (
   return 'unknown';
 };
 
+export const compressSchema = (
+  input: SchemaObject | undefined,
+  doc: OpenApiDocument,
+  seen = new Set<string>()
+): CompressedSchema | undefined => {
+  if (!input) return undefined;
+
+  if (input.$ref) {
+    const refName = getRefName(input.$ref);
+    if (seen.has(refName)) return { $ref: refName };
+
+    const resolved = resolveSchemaRef(input, doc);
+    if (!resolved || resolved === input) return { $ref: refName };
+
+    seen.add(refName);
+    const result = compressSchema(resolved, doc, seen);
+    seen.delete(refName);
+    return result ?? { $ref: refName };
+  }
+
+  const compressed: CompressedSchema = {};
+
+  if (input.type) compressed.type = input.type;
+  if (input.format) compressed.format = input.format;
+  if (input.description) compressed.description = input.description;
+  if (input.minimum !== undefined) compressed.minimum = input.minimum;
+  if (input.maximum !== undefined) compressed.maximum = input.maximum;
+  if (input.minLength !== undefined) compressed.minLength = input.minLength;
+  if (input.maxLength !== undefined) compressed.maxLength = input.maxLength;
+  if (input.minItems !== undefined) compressed.minItems = input.minItems;
+  if (input.maxItems !== undefined) compressed.maxItems = input.maxItems;
+  if (input.enum && input.enum.length > 0) compressed.enum = input.enum;
+  if (input.example !== undefined) compressed.example = input.example;
+
+  if (input.type === 'array' && input.items) {
+    compressed.items = compressSchema(input.items, doc, seen);
+  }
+
+  if (input.properties) {
+    const requiredSet = new Set(input.required ?? []);
+    const props: Record<string, CompressedSchema> = {};
+
+    for (const [name, schema] of Object.entries(input.properties)) {
+      const propCompressed = compressSchema(schema, doc, seen);
+      if (propCompressed) {
+        if (requiredSet.has(name)) {
+          propCompressed.required = true;
+        }
+        props[name] = propCompressed;
+      }
+    }
+
+    if (Object.keys(props).length > 0) {
+      compressed.properties = props;
+    }
+  }
+
+  if (typeof input.additionalProperties === 'object') {
+    compressed.additionalProperties = compressSchema(input.additionalProperties, doc, seen);
+  }
+
+  return compressed;
+};
+
+const parameterToCompressed = (
+  parameter: ParameterObject,
+  doc: OpenApiDocument
+): CompressedSchema => {
+  if (parameter.schema) {
+    const compressed = compressSchema(parameter.schema, doc);
+    if (compressed) {
+      if (parameter.description && !compressed.description) {
+        compressed.description = parameter.description;
+      }
+      if (parameter.required) compressed.required = true;
+      return compressed;
+    }
+  }
+
+  const result: CompressedSchema = {};
+
+  if (parameter.type === 'array') {
+    result.type = 'array';
+    result.items = parameter.items ? compressSchema(parameter.items, doc) : { type: 'string' };
+  } else {
+    result.type = parameter.type ?? 'string';
+  }
+
+  if (parameter.format) result.format = parameter.format;
+  if (parameter.description) result.description = parameter.description;
+  if (parameter.required) result.required = true;
+  if (parameter.minimum !== undefined) result.minimum = parameter.minimum;
+  if (parameter.maximum !== undefined) result.maximum = parameter.maximum;
+  if (parameter.minLength !== undefined) result.minLength = parameter.minLength;
+  if (parameter.maxLength !== undefined) result.maxLength = parameter.maxLength;
+  if (parameter.enum && parameter.enum.length > 0) result.enum = parameter.enum;
+
+  return result;
+};
+
 const toEndpointId = (method: HttpMethod, path: string): string => `${method.toUpperCase()} ${path}`;
 
 export const parseEndpointId = (id: string): { method: HttpMethod; path: string } | null => {
@@ -120,23 +221,6 @@ export const parseEndpointId = (id: string): { method: HttpMethod; path: string 
   if (!HTTP_METHODS.includes(method)) return null;
 
   return { method, path: pathTokens.join(' ') };
-};
-
-const parameterToTs = (parameter: ParameterObject, doc: OpenApiDocument): string => {
-  if (parameter.schema) return schemaToTs(parameter.schema, doc);
-  if (parameter.type === 'array') return `${schemaToTs(parameter.items, doc)}[]`;
-
-  switch (parameter.type) {
-    case 'integer':
-    case 'number':
-      return 'number';
-    case 'boolean':
-      return 'boolean';
-    case 'string':
-      return 'string';
-    default:
-      return 'unknown';
-  }
 };
 
 const pickPrimaryResponse = (responses: Record<string, ResponseObject> | undefined): ResponseObject | undefined => {
@@ -190,18 +274,18 @@ const buildRequest = (
   for (const parameter of mergedParameters) {
     if (!['path', 'query', 'header', 'cookie'].includes(parameter.in)) continue;
 
-    const key = `${parameter.name}${parameter.required ? '' : '?'}`;
-    const type = parameterToTs(parameter, doc);
+    const key = parameter.name;
+    const compressed = parameterToCompressed(parameter, doc);
 
-    if (parameter.in === 'path') request.path = { ...(request.path ?? {}), [key]: type };
-    if (parameter.in === 'query') request.query = { ...(request.query ?? {}), [key]: type };
-    if (parameter.in === 'header') request.header = { ...(request.header ?? {}), [key]: type };
-    if (parameter.in === 'cookie') request.cookie = { ...(request.cookie ?? {}), [key]: type };
+    if (parameter.in === 'path') request.path = { ...(request.path ?? {}), [key]: compressed };
+    if (parameter.in === 'query') request.query = { ...(request.query ?? {}), [key]: compressed };
+    if (parameter.in === 'header') request.header = { ...(request.header ?? {}), [key]: compressed };
+    if (parameter.in === 'cookie') request.cookie = { ...(request.cookie ?? {}), [key]: compressed };
   }
 
   const requestBody = getRequestBodySchema(operation);
   if (requestBody) {
-    request.body = schemaToTs(requestBody, doc);
+    request.body = compressSchema(requestBody, doc);
   }
 
   return Object.keys(request).length > 0 ? request : undefined;
@@ -253,6 +337,12 @@ export const minifySwaggerObject = (selectedEndpointIds: string[], doc: OpenApiD
     if (operation.description) {
       minifiedOp.description = operation.description;
     }
+    if (operation.operationId) {
+      minifiedOp.operationId = operation.operationId;
+    }
+    if (operation.tags && operation.tags.length > 0) {
+      minifiedOp.tags = operation.tags;
+    }
 
     const request = buildRequest(pathItem.parameters, operation.parameters, operation, doc);
     if (request) {
@@ -261,7 +351,7 @@ export const minifySwaggerObject = (selectedEndpointIds: string[], doc: OpenApiD
 
     const responseSchema = getResponseSchema(pickPrimaryResponse(operation.responses));
     if (responseSchema) {
-      minifiedOp.response = schemaToTs(responseSchema, doc);
+      minifiedOp.response = compressSchema(responseSchema, doc);
     }
 
     output.paths[parsed.path] = {

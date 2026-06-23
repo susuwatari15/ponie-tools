@@ -12,6 +12,7 @@ export interface SchemaObject {
   type?: string;
   format?: string;
   nullable?: boolean;
+  description?: string;
   enum?: Array<string | number | boolean | null>;
   properties?: Record<string, SchemaObject>;
   required?: string[];
@@ -21,15 +22,34 @@ export interface SchemaObject {
   anyOf?: SchemaObject[];
   allOf?: SchemaObject[];
   $ref?: string;
+  minimum?: number;
+  maximum?: number;
+  exclusiveMinimum?: boolean | number;
+  exclusiveMaximum?: boolean | number;
+  minLength?: number;
+  maxLength?: number;
+  minItems?: number;
+  maxItems?: number;
+  uniqueItems?: boolean;
+  pattern?: string;
+  default?: unknown;
+  example?: unknown;
 }
 
 export interface ParameterObject {
   name: string;
   in: 'query' | 'header' | 'path' | 'cookie' | 'body' | 'formData';
   required?: boolean;
+  description?: string;
   schema?: SchemaObject;
   type?: string;
   items?: SchemaObject;
+  format?: string;
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  enum?: Array<string | number | boolean | null>;
 }
 
 export interface MediaTypeObject {
@@ -50,6 +70,7 @@ export interface OperationObject {
   summary?: string;
   description?: string;
   operationId?: string;
+  tags?: string[];
   parameters?: ParameterObject[];
   requestBody?: RequestBodyObject;
   responses?: Record<string, ResponseObject>;
@@ -88,19 +109,40 @@ export interface EndpointItem {
   summary: string;
 }
 
+export interface CompressedSchema {
+  type?: string;
+  format?: string;
+  description?: string;
+  required?: boolean;
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  minItems?: number;
+  maxItems?: number;
+  enum?: Array<string | number | boolean | null>;
+  items?: CompressedSchema;
+  properties?: Record<string, CompressedSchema>;
+  additionalProperties?: boolean | CompressedSchema;
+  $ref?: string;
+  example?: unknown;
+}
+
 export interface MinifiedRequest {
-  path?: Record<string, string>;
-  query?: Record<string, string>;
-  header?: Record<string, string>;
-  cookie?: Record<string, string>;
-  body?: string;
+  path?: Record<string, CompressedSchema>;
+  query?: Record<string, CompressedSchema>;
+  header?: Record<string, CompressedSchema>;
+  cookie?: Record<string, CompressedSchema>;
+  body?: CompressedSchema;
 }
 
 export interface MinifiedOperation {
   summary?: string;
   description?: string;
+  operationId?: string;
+  tags?: string[];
   request?: MinifiedRequest;
-  response?: string;
+  response?: CompressedSchema;
 }
 
 export interface MinifiedPathItem {
