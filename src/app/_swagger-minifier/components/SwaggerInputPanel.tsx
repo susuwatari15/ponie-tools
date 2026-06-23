@@ -1,6 +1,6 @@
 import type { ChangeEvent, FC } from "react";
 import { GitCompare } from "lucide-react";
-import type { EndpointItem } from "@/types/openapi";
+import type { EndpointItem, HttpMethod } from "@/types/openapi";
 import type { ParsedOpenApiInput } from "@/lib/openApiInput";
 import type { SwaggerProfile } from "@/lib/swaggerProfilesStorage";
 import { panelClasses } from "../styles";
@@ -45,6 +45,8 @@ type SwaggerInputPanelProps = {
 	allEndpoints: EndpointItem[];
 	searchQuery: string;
 	onSearchQueryChange: (value: string) => void;
+	selectedMethods: HttpMethod[];
+	onToggleMethod: (method: HttpMethod) => void;
 	selectedCount: number;
 	visibleAllSelected: boolean;
 	onToggleSelectAllVisible: () => void;
@@ -74,6 +76,8 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 	allEndpoints,
 	searchQuery,
 	onSearchQueryChange,
+	selectedMethods,
+	onToggleMethod,
 	selectedCount,
 	visibleAllSelected,
 	onToggleSelectAllVisible,
@@ -134,11 +138,14 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 		<SwaggerEndpointSearch
 			searchQuery={searchQuery}
 			onSearchQueryChange={onSearchQueryChange}
+			selectedMethods={selectedMethods}
+			onToggleMethod={onToggleMethod}
 			selectedCount={selectedCount}
 			totalEndpoints={allEndpoints.length}
 			visibleAllSelected={visibleAllSelected}
 			onToggleSelectAllVisible={onToggleSelectAllVisible}
 			canToggleVisible={filteredEndpoints.length > 0}
+			endpoints={allEndpoints}
 		/>
 
 		<SwaggerEndpointList

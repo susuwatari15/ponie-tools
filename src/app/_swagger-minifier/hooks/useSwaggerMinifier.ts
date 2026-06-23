@@ -5,7 +5,7 @@ import {
 	useMemo,
 	useState,
 } from "react";
-import type { EndpointItem } from "@/types/openapi";
+import type { EndpointItem, HttpMethod } from "@/types/openapi";
 import {
 	buildEndpointIndex,
 	fetchSwaggerFromUrl,
@@ -32,6 +32,7 @@ export function useSwaggerMinifier(initialJson: string) {
 		return initialJson;
 	});
 	const [searchQuery, setSearchQuery] = useState("");
+	const [selectedMethods, setSelectedMethods] = useState<HttpMethod[]>([]);
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [copied, setCopied] = useState(false);
 	const [inputMode, setInputMode] = useState<"manual" | "url">(() =>
@@ -92,6 +93,7 @@ export function useSwaggerMinifier(initialJson: string) {
 
 	const deferredRawJson = useDeferredValue(rawJson);
 	const deferredSearchQuery = useDeferredValue(searchQuery);
+	const deferredSelectedMethods = useDeferredValue(selectedMethods);
 
 	const parsed = useMemo(
 		() => parseOpenApiInput(deferredRawJson),
@@ -104,8 +106,8 @@ export function useSwaggerMinifier(initialJson: string) {
 	}, [parsed.doc]);
 
 	const filteredEndpoints = useMemo(
-		() => filterEndpointsByQuery(allEndpoints, deferredSearchQuery),
-		[allEndpoints, deferredSearchQuery],
+		() => filterEndpointsByQuery(allEndpoints, deferredSearchQuery, deferredSelectedMethods),
+		[allEndpoints, deferredSearchQuery, deferredSelectedMethods],
 	);
 
 	useEffect(() => {
@@ -165,6 +167,14 @@ export function useSwaggerMinifier(initialJson: string) {
 		});
 	};
 
+	const toggleMethod = (method: HttpMethod) => {
+		setSelectedMethods((previous) =>
+			previous.includes(method)
+				? previous.filter((m) => m !== method)
+				: [...previous, method]
+		);
+	};
+
 	const onCopyFormat = async (format: SwaggerCopyFormat) => {
 		const text = format === "full" ? minifiedOutput : minifiedOutputShort;
 		if (!text) return;
@@ -217,6 +227,8 @@ export function useSwaggerMinifier(initialJson: string) {
 		setRawJson,
 		searchQuery,
 		setSearchQuery,
+		selectedMethods,
+		toggleMethod,
 		selectedIds,
 		copied,
 		inputMode,
