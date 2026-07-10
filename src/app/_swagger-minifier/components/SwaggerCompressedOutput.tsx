@@ -1,7 +1,7 @@
 import { Check, Copy } from "lucide-react";
 import type { FC } from "react";
 import { panelClasses } from "../styles";
-import type { SwaggerCopyFormat } from "@/lib/swaggerShortFormat";
+import type { SwaggerMinifierCopyFormat } from "../hooks/useSwaggerMinifier";
 
 type SwaggerCompressedOutputProps = {
   hasParseError: boolean;
@@ -9,7 +9,7 @@ type SwaggerCompressedOutputProps = {
   minifiedOutput: string;
   minifiedOutputShort: string;
   copied: boolean;
-  onCopyFormat: (format: SwaggerCopyFormat) => void;
+  onCopyFormat: (format: SwaggerMinifierCopyFormat) => void;
 };
 
 const copyBtnClass =
@@ -25,6 +25,7 @@ export const SwaggerCompressedOutput: FC<SwaggerCompressedOutputProps> = ({
 }) => {
   const canCopyFull = Boolean(minifiedOutput);
   const canCopyShort = Boolean(minifiedOutputShort);
+  const canCopyMinified = Boolean(minifiedOutput);
 
   return (
     <section
@@ -63,6 +64,16 @@ export const SwaggerCompressedOutput: FC<SwaggerCompressedOutputProps> = ({
               >
                 <Copy className="size-3.5 shrink-0 opacity-80" aria-hidden />
                 Short
+              </button>
+              <button
+                type="button"
+                disabled={!canCopyMinified}
+                onClick={() => onCopyFormat("minified")}
+                title="Compact JSON string"
+                className={copyBtnClass}
+              >
+                <Copy className="size-3.5 shrink-0 opacity-80" aria-hidden />
+                Copy Minified
               </button>
             </>
           )}

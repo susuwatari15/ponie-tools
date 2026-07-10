@@ -14,7 +14,7 @@ import {
 import { filterEndpointsByQuery } from "@/lib/endpointFilter";
 import { parseOpenApiInput } from "@/lib/openApiInput";
 import { readStoredRawJson } from "@/lib/swaggerRawJsonStorage";
-import { formatSwaggerEndpointsShort, type SwaggerCopyFormat } from "@/lib/swaggerShortFormat";
+import { formatSwaggerEndpointsShort } from "@/lib/swaggerShortFormat";
 import {
 	addProfile,
 	listProfiles,
@@ -24,6 +24,8 @@ import {
 	updateProfile,
 	writeSelectedProfileId,
 } from "@/lib/swaggerProfilesStorage";
+
+export type SwaggerMinifierCopyFormat = "full" | "short" | "minified";
 
 export function useSwaggerMinifier(initialJson: string) {
 	const [rawJson, setRawJson] = useState(() => {
@@ -175,8 +177,19 @@ export function useSwaggerMinifier(initialJson: string) {
 		);
 	};
 
-	const onCopyFormat = async (format: SwaggerCopyFormat) => {
-		const text = format === "full" ? minifiedOutput : minifiedOutputShort;
+	const onCopyFormat = async (format: SwaggerMinifierCopyFormat) => {
+		const text =
+			format === "full"
+				? minifiedOutput
+				: format === "short"
+					? minifiedOutputShort
+					: (() => {
+						try {
+							return JSON.stringify(JSON.parse(minifiedOutput));
+						} catch {
+							return minifiedOutput;
+						}
+					})();
 		if (!text) return;
 
 		try {
