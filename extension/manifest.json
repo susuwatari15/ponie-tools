@@ -1,0 +1,19 @@
+{
+	"manifest_version": 3,
+	"name": "Ponie Swagger Fetcher",
+	"version": "1.0.0",
+	"description": "Fetches authenticated Swagger docs for Ponie Tools using your existing browser session.",
+	"background": { "service_worker": "background.js" },
+	"content_scripts": [
+		{
+			"matches": [
+				"https://ponie-tools.vercel.app/*",
+				"http://localhost:3000/*"
+			],
+			"js": ["bridge.js"],
+			"run_at": "document_start"
+		}
+	],
+	"host_permissions": ["https://*.masangrouptech.com/*"],
+	"permissions": []
+}

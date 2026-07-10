@@ -24,6 +24,7 @@ type ProfileWriteResult =
 type SwaggerUrlFetchFormProps = {
   isFetchingUrl: boolean;
   urlFetchError: string;
+  extensionAvailable: boolean;
   onFetchFromUrl: () => void;
   rawJson: string;
   onSnapshotSaved?: () => void;
@@ -47,6 +48,7 @@ type SwaggerUrlFetchFormProps = {
 export const SwaggerUrlFetchForm: FC<SwaggerUrlFetchFormProps> = ({
   isFetchingUrl,
   urlFetchError,
+  extensionAvailable,
   onFetchFromUrl,
   rawJson,
   onSnapshotSaved,
@@ -108,6 +110,12 @@ export const SwaggerUrlFetchForm: FC<SwaggerUrlFetchFormProps> = ({
             </button>
           </div>
         </div>
+
+        {extensionAvailable ? (
+          <p className="px-1 text-[11px] text-emerald-600 dark:text-emerald-400">
+            Browser extension: connected — fetching uses your browser session.
+          </p>
+        ) : null}
 
         {selectedProfile ? (
           hasUrl ? (

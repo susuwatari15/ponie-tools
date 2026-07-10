@@ -16,6 +16,10 @@ import { parseOpenApiInput } from "@/lib/openApiInput";
 import { readStoredRawJson } from "@/lib/swaggerRawJsonStorage";
 import { formatSwaggerEndpointsShort } from "@/lib/swaggerShortFormat";
 import {
+	fetchSwaggerViaExtension,
+	isExtensionAvailable,
+} from "@/lib/swaggerExtensionBridge";
+import {
 	addProfile,
 	listProfiles,
 	readSelectedProfileId,
@@ -42,6 +46,7 @@ export function useSwaggerMinifier(initialJson: string) {
 	);
 	const [isFetchingUrl, setIsFetchingUrl] = useState(false);
 	const [urlFetchError, setUrlFetchError] = useState("");
+	const [extensionAvailable, setExtensionAvailable] = useState(false);
 
 	const [profiles, setProfiles] = useState<SwaggerProfile[]>(() => listProfiles());
 	const [selectedProfileId, setSelectedProfileId] = useState<string | null>(() =>
@@ -56,6 +61,20 @@ export function useSwaggerMinifier(initialJson: string) {
 	useEffect(() => {
 		writeSelectedProfileId(selectedProfileId);
 	}, [selectedProfileId]);
+
+	useEffect(() => {
+		let cancelled = false;
+		const probe = async () => {
+			const available = await isExtensionAvailable();
+			if (!cancelled) setExtensionAvailable(available);
+		};
+		probe();
+		window.addEventListener("focus", probe);
+		return () => {
+			cancelled = true;
+			window.removeEventListener("focus", probe);
+		};
+	}, []);
 
 	const selectProfile = (id: string | null) => {
 		setSelectedProfileId(id);
@@ -220,15 +239,45 @@ export function useSwaggerMinifier(initialJson: string) {
 		setIsFetchingUrl(true);
 
 		try {
-			const fetchedJson = await fetchSwaggerFromUrl(
-				selectedProfile.url,
-				selectedProfile.username,
-				selectedProfile.password,
-			);
-			setRawJson(fetchedJson);
+			if (extensionAvailable) {
+				const result = await fetchSwaggerViaExtension(
+					selectedProfile.url,
+					selectedProfile.username,
+					selectedProfile.password,
+				);
+				if (result.ok) {
+					setRawJson(JSON.stringify(JSON.parse(result.data), null, 2));
+				} else if (result.code === "NOT_AUTHENTICATED") {
+					setUrlFetchError(
+						"Not logged in to the API domain. Use \"Open in browser\" to log in, then retry.",
+					);
+				} else if (
+					result.code === "URL_NOT_ALLOWED" ||
+					result.code === "BRIDGE_ERROR" ||
+					result.code === "TIMEOUT"
+				) {
+					const fetchedJson = await fetchSwaggerFromUrl(
+						selectedProfile.url,
+						selectedProfile.username,
+						selectedProfile.password,
+					);
+					setRawJson(fetchedJson);
+				} else {
+					console.error("Error fetching swagger via extension:", result);
+					setUrlFetchError(result.message);
+				}
+			} else {
+				const fetchedJson = await fetchSwaggerFromUrl(
+					selectedProfile.url,
+					selectedProfile.username,
+					selectedProfile.password,
+				);
+				setRawJson(fetchedJson);
+			}
 		} catch (error) {
 			const message =
 				error instanceof Error ? error.message : "Failed to fetch swagger from URL.";
+			console.error("Error fetching swagger from URL:", error);
 			setUrlFetchError(message);
 		} finally {
 			setIsFetchingUrl(false);
@@ -248,6 +297,7 @@ export function useSwaggerMinifier(initialJson: string) {
 		setInputMode,
 		isFetchingUrl,
 		urlFetchError,
+		extensionAvailable,
 		profiles,
 		selectedProfile,
 		selectProfile,

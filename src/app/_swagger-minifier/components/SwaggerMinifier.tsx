@@ -32,6 +32,7 @@ const SwaggerMinifier: FC<SwaggerMinifierProps> = ({
         onNavigateToCompareLatest={onNavigateToCompareLatest}
         isFetchingUrl={m.isFetchingUrl}
         urlFetchError={m.urlFetchError}
+        extensionAvailable={m.extensionAvailable}
         onFetchFromUrl={m.onFetchFromUrl}
         profiles={m.profiles}
         selectedProfile={m.selectedProfile}

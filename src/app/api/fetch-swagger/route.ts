@@ -38,18 +38,33 @@ export async function POST(request: NextRequest) {
 		);
 	}
 
+	// fetch() rejects URLs containing credentials. Extract Basic auth values and
+	// remove them from the URL before constructing the upstream request.
+	const embeddedUsername = decodeURIComponent(parsedUrl.username);
+	const embeddedPassword = decodeURIComponent(parsedUrl.password);
+	parsedUrl.username = "";
+	parsedUrl.password = "";
+
+	const hasExplicitCredentials = Boolean(username || password);
+	const effectiveUsername = hasExplicitCredentials
+		? (username ?? "")
+		: embeddedUsername;
+	const effectivePassword = hasExplicitCredentials
+		? (password ?? "")
+		: embeddedPassword;
+
 	const headers: HeadersInit = {
 		Accept: "application/json,text/plain,*/*",
 	};
 
-	if (username || password) {
-		const credentials = `${username ?? ""}:${password ?? ""}`;
+	if (effectiveUsername || effectivePassword) {
+		const credentials = `${effectiveUsername}:${effectivePassword}`;
 		const encoded = Buffer.from(credentials, "utf-8").toString("base64");
 		headers.Authorization = `Basic ${encoded}`;
 	}
 
 	try {
-		const response = await fetch(url, {
+		const response = await fetch(parsedUrl.toString(), {
 			method: "GET",
 			headers,
 		});

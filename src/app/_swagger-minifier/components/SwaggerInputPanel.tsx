@@ -21,6 +21,7 @@ type SwaggerInputPanelProps = {
 	onNavigateToCompareLatest?: () => void;
 	isFetchingUrl: boolean;
 	urlFetchError: string;
+	extensionAvailable: boolean;
 	onFetchFromUrl: () => void;
 	profiles: SwaggerProfile[];
 	selectedProfile: SwaggerProfile | null;
@@ -65,6 +66,7 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 	onNavigateToCompareLatest,
 	isFetchingUrl,
 	urlFetchError,
+	extensionAvailable,
 	onFetchFromUrl,
 	profiles,
 	selectedProfile,
@@ -103,6 +105,7 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 				<SwaggerUrlFetchForm
 					isFetchingUrl={isFetchingUrl}
 					urlFetchError={urlFetchError}
+					extensionAvailable={extensionAvailable}
 					onFetchFromUrl={onFetchFromUrl}
 					rawJson={rawJson}
 					onSnapshotSaved={onSnapshotSaved}
