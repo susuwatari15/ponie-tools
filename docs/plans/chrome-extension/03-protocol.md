@@ -47,6 +47,7 @@ Payload:
 ```
 
 - `url` must be `https://` and host must match the extension allowlist (`*.masangrouptech.com`).
+- Before fetching, the background worker verifies that Chrome has actually granted the matching host permission. If the user withheld it through the extension's **Site access** controls, Chrome prompts to restore the declared permission; declining or an unavailable prompt returns `HOST_PERMISSION_REQUIRED` without issuing a CORS-blocked request.
 - URLs with embedded credentials (`https://user:pass@host/…`) are accepted; the extension strips them and uses them as Basic auth when `username`/`password` aren't provided.
 - Fetch is `GET`, `credentials: "include"`, `redirect: "manual"`, plus `Authorization: Basic …` when credentials exist. A redirect (opaque, from `redirect: "manual"`) is classified as `NOT_AUTHENTICATED` — an unauthenticated gateway bounces to an SSO/login page on a host outside `host_permissions`, and following it would throw `TypeError: Failed to fetch`.
 
@@ -66,6 +67,7 @@ Payload: `{ url: string }` (same allowlist rules). Opens the URL in a new tab so
 |---|---|---|---|
 | `BAD_REQUEST` | background | Missing/invalid URL | Show message |
 | `URL_NOT_ALLOWED` | background | Host not on allowlist | Fall back to server route |
+| `HOST_PERMISSION_REQUIRED` | background | The declared API host permission is currently withheld in Chrome | Tell user to allow the API host in the extension's Site access settings, then retry |
 | `NOT_AUTHENTICATED` | background | 401/403, a 3xx redirect to a login page, or HTTP 200 with a non-JSON body | Tell user to log in via "Open in browser", retry |
 | `UPSTREAM_ERROR` | background | Other non-2xx status (`status` field set) | Show message |
 | `NETWORK_ERROR` | background | fetch threw (DNS, TLS, offline) | Show message |
