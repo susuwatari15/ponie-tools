@@ -19,16 +19,14 @@ const SwaggerCompareContent: FC = () => {
 	const initialSnapshotIdB = searchParams.get("b") ?? "";
 
 	const refreshSnapshots = useCallback(() => {
-		setSnapshots(listSnapshots());
+		void listSnapshots().then(setSnapshots);
 	}, []);
 
 	useEffect(() => {
 		refreshSnapshots();
 	}, [refreshSnapshots]);
 
-	const handleLoadSnapshot = (rawJson: string) => {
-		writeRawJsonToStorage(rawJson);
-	};
+	const handleLoadSnapshot = (rawJson: string) => writeRawJsonToStorage(rawJson);
 
 	return (
 		<div className={`w-full space-y-4 p-4 lg:p-4 ${themeClasses}`}>

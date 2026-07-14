@@ -1,6 +1,12 @@
-export const SWAGGER_PROFILES_STORAGE_KEY = "swagger-minifier-profiles";
-export const SWAGGER_SELECTED_PROFILE_STORAGE_KEY =
-	"swagger-minifier-selected-profile";
+import {
+	classifyWriteError,
+	idbDelete,
+	idbGet,
+	idbPut,
+	KEYVAL_STORE,
+	PROFILES_KEY,
+	SELECTED_PROFILE_KEY,
+} from "./indexedDb";
 
 export type SwaggerProfile = {
 	id: string;
@@ -38,52 +44,33 @@ function isProfile(item: unknown): item is SwaggerProfile {
 	);
 }
 
-function parseStored(raw: string | null): SwaggerProfile[] {
-	if (!raw) return [];
-	try {
-		const parsed = JSON.parse(raw) as unknown;
-		if (!Array.isArray(parsed)) return [];
-		return parsed.filter(isProfile);
-	} catch {
-		return [];
-	}
-}
-
-export function listProfiles(): SwaggerProfile[] {
-	if (typeof window === "undefined") return [];
-	try {
-		return parseStored(localStorage.getItem(SWAGGER_PROFILES_STORAGE_KEY));
-	} catch {
-		return [];
-	}
-}
-
-function writeAll(profiles: SwaggerProfile[]): void {
-	localStorage.setItem(SWAGGER_PROFILES_STORAGE_KEY, JSON.stringify(profiles));
-}
-
 export type ProfileWriteError = "quota" | "unknown";
 
-function classifyWriteError(e: unknown): ProfileWriteError {
-	const name =
-		typeof e === "object" && e !== null && "name" in e
-			? String((e as { name?: string }).name)
-			: "";
-	if (name === "QuotaExceededError" || name === "NS_ERROR_DOM_QUOTA_REACHED") {
-		return "quota";
+/** Profiles are stored as a single ordered array under one keyval entry. */
+export async function listProfiles(): Promise<SwaggerProfile[]> {
+	try {
+		const stored = await idbGet<unknown>(KEYVAL_STORE, PROFILES_KEY);
+		if (!Array.isArray(stored)) return [];
+		return stored.filter(isProfile);
+	} catch {
+		return [];
 	}
-	return "unknown";
 }
 
-export function addProfile(input: {
+async function writeAll(profiles: SwaggerProfile[]): Promise<void> {
+	await idbPut(KEYVAL_STORE, profiles, PROFILES_KEY);
+}
+
+export async function addProfile(input: {
 	name: string;
 	color: string;
 	url: string;
 	username: string;
 	password: string;
-}):
+}): Promise<
 	| { ok: true; profile: SwaggerProfile }
-	| { ok: false; error: ProfileWriteError } {
+	| { ok: false; error: ProfileWriteError }
+> {
 	const profile: SwaggerProfile = {
 		id: crypto.randomUUID(),
 		name: input.name.trim(),
@@ -93,22 +80,23 @@ export function addProfile(input: {
 		password: input.password,
 	};
 
-	const next = [...listProfiles(), profile];
+	const next = [...(await listProfiles()), profile];
 	try {
-		writeAll(next);
+		await writeAll(next);
 		return { ok: true, profile };
 	} catch (e: unknown) {
 		return { ok: false, error: classifyWriteError(e) };
 	}
 }
 
-export function updateProfile(
+export async function updateProfile(
 	id: string,
 	patch: Partial<Omit<SwaggerProfile, "id">>,
-):
+): Promise<
 	| { ok: true; profile: SwaggerProfile }
-	| { ok: false; error: ProfileWriteError | "not-found" } {
-	const profiles = listProfiles();
+	| { ok: false; error: ProfileWriteError | "not-found" }
+> {
+	const profiles = await listProfiles();
 	const index = profiles.findIndex((p) => p.id === id);
 	if (index === -1) return { ok: false, error: "not-found" };
 
@@ -122,43 +110,43 @@ export function updateProfile(
 	next[index] = updated;
 
 	try {
-		writeAll(next);
+		await writeAll(next);
 		return { ok: true, profile: updated };
 	} catch (e: unknown) {
 		return { ok: false, error: classifyWriteError(e) };
 	}
 }
 
-export function removeProfile(id: string): void {
-	const next = listProfiles().filter((p) => p.id !== id);
+export async function removeProfile(id: string): Promise<void> {
+	const next = (await listProfiles()).filter((p) => p.id !== id);
 	try {
-		writeAll(next);
+		await writeAll(next);
 	} catch {
 		// ignore
 	}
 }
 
-export function getProfile(id: string): SwaggerProfile | undefined {
-	return listProfiles().find((p) => p.id === id);
+export async function getProfile(id: string): Promise<SwaggerProfile | undefined> {
+	return (await listProfiles()).find((p) => p.id === id);
 }
 
-export function readSelectedProfileId(): string | null {
-	if (typeof window === "undefined") return null;
+export async function readSelectedProfileId(): Promise<string | null> {
 	try {
-		return localStorage.getItem(SWAGGER_SELECTED_PROFILE_STORAGE_KEY);
+		const value = await idbGet<string>(KEYVAL_STORE, SELECTED_PROFILE_KEY);
+		return typeof value === "string" ? value : null;
 	} catch {
 		return null;
 	}
 }
 
-export function writeSelectedProfileId(id: string | null): void {
+export async function writeSelectedProfileId(id: string | null): Promise<void> {
 	try {
 		if (id) {
-			localStorage.setItem(SWAGGER_SELECTED_PROFILE_STORAGE_KEY, id);
+			await idbPut(KEYVAL_STORE, id, SELECTED_PROFILE_KEY);
 		} else {
-			localStorage.removeItem(SWAGGER_SELECTED_PROFILE_STORAGE_KEY);
+			await idbDelete(KEYVAL_STORE, SELECTED_PROFILE_KEY);
 		}
 	} catch {
-		// storage full or unavailable
+		// storage unavailable
 	}
 }

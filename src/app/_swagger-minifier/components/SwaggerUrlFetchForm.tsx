@@ -37,11 +37,11 @@ type SwaggerUrlFetchFormProps = {
     url: string;
     username: string;
     password: string;
-  }) => ProfileWriteResult;
+  }) => Promise<ProfileWriteResult>;
   onEditProfile: (
     id: string,
     patch: Partial<Omit<SwaggerProfile, "id">>,
-  ) => ProfileWriteResult;
+  ) => Promise<ProfileWriteResult>;
   onDeleteProfile: (id: string) => void;
 };
 

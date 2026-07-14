@@ -32,15 +32,17 @@ type SwaggerInputPanelProps = {
 		url: string;
 		username: string;
 		password: string;
-	}) =>
+	}) => Promise<
 		| { ok: true; profile: SwaggerProfile }
-		| { ok: false; error: string };
+		| { ok: false; error: string }
+	>;
 	onEditProfile: (
 		id: string,
 		patch: Partial<Omit<SwaggerProfile, "id">>,
-	) =>
+	) => Promise<
 		| { ok: true; profile: SwaggerProfile }
-		| { ok: false; error: string };
+		| { ok: false; error: string }
+	>;
 	onDeleteProfile: (id: string) => void;
 	parsed: ParsedOpenApiInput;
 	allEndpoints: EndpointItem[];

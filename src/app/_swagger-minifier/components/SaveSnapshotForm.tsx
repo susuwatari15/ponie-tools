@@ -52,14 +52,14 @@ export const SaveSnapshotForm: FC<SaveSnapshotFormProps> = ({
     form.clearErrors("name");
   }, [profileName]);
 
-  function submit(values: SnapshotFormValues) {
+  async function submit(values: SnapshotFormValues) {
     const parsed = parseOpenApiInput(rawJson);
     if (parsed.error || !parsed.doc) {
       setSubmitError(parsed.error || "Invalid OpenAPI JSON.");
       return;
     }
 
-    const result = addSnapshot({
+    const result = await addSnapshot({
       name: values.name,
       rawJson,
       profileName: profileName?.trim() || undefined,
@@ -74,11 +74,8 @@ export const SaveSnapshotForm: FC<SaveSnapshotFormProps> = ({
       return;
     }
 
-    try {
-      writeRawJsonToStorage(rawJson);
-    } catch {
-      // snapshot already stored; draft optional
-    }
+    // Persist the draft too; snapshot is already stored, so this is best-effort.
+    await writeRawJsonToStorage(rawJson);
 
     setSubmitError("");
     setSaved(true);

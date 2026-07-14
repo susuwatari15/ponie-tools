@@ -3,6 +3,7 @@ import {
 	useDeferredValue,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 } from "react";
 import type { EndpointItem, HttpMethod } from "@/types/openapi";
@@ -32,26 +33,22 @@ import {
 export type SwaggerMinifierCopyFormat = "full" | "short" | "minified";
 
 export function useSwaggerMinifier(initialJson: string) {
-	const [rawJson, setRawJson] = useState(() => {
-		const stored = readStoredRawJson();
-		if (stored !== null) return stored;
-		return initialJson;
-	});
+	const [rawJson, setRawJson] = useState(initialJson);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedMethods, setSelectedMethods] = useState<HttpMethod[]>([]);
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [copied, setCopied] = useState(false);
-	const [inputMode, setInputMode] = useState<"manual" | "url">(() =>
-		readSelectedProfileId() ? "url" : "manual",
-	);
+	const [inputMode, setInputMode] = useState<"manual" | "url">("manual");
 	const [isFetchingUrl, setIsFetchingUrl] = useState(false);
 	const [urlFetchError, setUrlFetchError] = useState("");
 	const [extensionAvailable, setExtensionAvailable] = useState(false);
 
-	const [profiles, setProfiles] = useState<SwaggerProfile[]>(() => listProfiles());
-	const [selectedProfileId, setSelectedProfileId] = useState<string | null>(() =>
-		readSelectedProfileId(),
-	);
+	const [profiles, setProfiles] = useState<SwaggerProfile[]>([]);
+	const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+
+	// IndexedDB reads are async, so persisted state is hydrated after mount
+	// rather than in the useState initializers.
+	const hydratedRef = useRef(false);
 
 	const selectedProfile = useMemo(
 		() => profiles.find((profile) => profile.id === selectedProfileId) ?? null,
@@ -59,7 +56,30 @@ export function useSwaggerMinifier(initialJson: string) {
 	);
 
 	useEffect(() => {
-		writeSelectedProfileId(selectedProfileId);
+		let cancelled = false;
+		(async () => {
+			const [storedRawJson, storedProfiles, storedSelectedId] = await Promise.all([
+				readStoredRawJson(),
+				listProfiles(),
+				readSelectedProfileId(),
+			]);
+			if (cancelled) return;
+			if (storedRawJson !== null) setRawJson(storedRawJson);
+			setProfiles(storedProfiles);
+			setSelectedProfileId(storedSelectedId);
+			if (storedSelectedId) setInputMode("url");
+			hydratedRef.current = true;
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	useEffect(() => {
+		// Don't persist until hydration has loaded the stored value, otherwise
+		// the initial null would overwrite it.
+		if (!hydratedRef.current) return;
+		void writeSelectedProfileId(selectedProfileId);
 	}, [selectedProfileId]);
 
 	useEffect(() => {
@@ -80,35 +100,35 @@ export function useSwaggerMinifier(initialJson: string) {
 		setSelectedProfileId(id);
 	};
 
-	const createProfile = (input: {
+	const createProfile = async (input: {
 		name: string;
 		color: string;
 		url: string;
 		username: string;
 		password: string;
 	}) => {
-		const result = addProfile(input);
+		const result = await addProfile(input);
 		if (result.ok) {
-			setProfiles(listProfiles());
+			setProfiles(await listProfiles());
 			setSelectedProfileId(result.profile.id);
 		}
 		return result;
 	};
 
-	const editProfile = (
+	const editProfile = async (
 		id: string,
 		patch: Partial<Omit<SwaggerProfile, "id">>,
 	) => {
-		const result = updateProfile(id, patch);
+		const result = await updateProfile(id, patch);
 		if (result.ok) {
-			setProfiles(listProfiles());
+			setProfiles(await listProfiles());
 		}
 		return result;
 	};
 
-	const deleteProfile = (id: string) => {
-		removeProfile(id);
-		setProfiles(listProfiles());
+	const deleteProfile = async (id: string) => {
+		await removeProfile(id);
+		setProfiles(await listProfiles());
 		setSelectedProfileId((previous) => (previous === id ? null : previous));
 	};
 

@@ -1,14 +1,18 @@
-export const RAW_JSON_STORAGE_KEY = "swagger-minifier-raw-json";
+import { idbGet, idbPut, KEYVAL_STORE, RAW_JSON_KEY } from "./indexedDb";
 
-export function readStoredRawJson(): string | null {
-	if (typeof window === "undefined") return null;
+export async function readStoredRawJson(): Promise<string | null> {
 	try {
-		return localStorage.getItem(RAW_JSON_STORAGE_KEY);
+		const value = await idbGet<string>(KEYVAL_STORE, RAW_JSON_KEY);
+		return typeof value === "string" ? value : null;
 	} catch {
 		return null;
 	}
 }
 
-export function writeRawJsonToStorage(rawJson: string): void {
-	localStorage.setItem(RAW_JSON_STORAGE_KEY, rawJson);
+export async function writeRawJsonToStorage(rawJson: string): Promise<void> {
+	try {
+		await idbPut(KEYVAL_STORE, rawJson, RAW_JSON_KEY);
+	} catch {
+		// storage unavailable
+	}
 }

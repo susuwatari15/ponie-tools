@@ -3,10 +3,7 @@ import { Check, Copy } from "lucide-react";
 import type { FC } from "react";
 import { useState } from "react";
 import type { SavedSnapshot } from "@/lib/swaggerSavedSnapshotsStorage";
-import {
-  getSnapshot,
-  removeSnapshot,
-} from "@/lib/swaggerSavedSnapshotsStorage";
+import { removeSnapshot } from "@/lib/swaggerSavedSnapshotsStorage";
 import {
   buildNewChangedClipboardText,
   compareOpenApiRawJson,
@@ -18,7 +15,7 @@ import { SwaggerSnapshotList } from "./SwaggerSnapshotList";
 type SwaggerComparePanelProps = {
   snapshots: SavedSnapshot[];
   onSnapshotsChange: () => void;
-  onLoadSnapshot: (rawJson: string) => void;
+  onLoadSnapshot: (rawJson: string) => void | Promise<void>;
   onSwitchToMinifier: () => void;
   initialSnapshotIdA?: string;
   initialSnapshotIdB?: string;
@@ -46,13 +43,14 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
     </option>
   ));
 
-  const handleLoad = (snap: SavedSnapshot) => {
-    onLoadSnapshot(snap.rawJson);
+  const handleLoad = async (snap: SavedSnapshot) => {
+    // Persist the draft before navigating; the minifier reads it on mount.
+    await onLoadSnapshot(snap.rawJson);
     onSwitchToMinifier();
   };
 
-  const handleDelete = (id: string) => {
-    removeSnapshot(id);
+  const handleDelete = async (id: string) => {
+    await removeSnapshot(id);
     onSnapshotsChange();
     if (idA === id) setIdA("");
     if (idB === id) setIdB("");
@@ -84,8 +82,8 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
       return;
     }
 
-    const snapA = getSnapshot(idA);
-    const snapB = getSnapshot(idB);
+    const snapA = snapshots.find((s) => s.id === idA);
+    const snapB = snapshots.find((s) => s.id === idB);
     if (!snapA || !snapB) {
       setCompareResult({
         ok: false,
@@ -101,7 +99,7 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
     setCompareResult(result);
   };
 
-  const snapBForCopy = idB ? getSnapshot(idB) : undefined;
+  const snapBForCopy = idB ? snapshots.find((s) => s.id === idB) : undefined;
   const canCopyNewAndChanged =
     compareResult?.ok === true &&
     compareResult.added.length + compareResult.changed.length > 0 &&

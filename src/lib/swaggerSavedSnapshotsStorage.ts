@@ -1,4 +1,11 @@
-export const SAVED_SNAPSHOTS_STORAGE_KEY = "swagger-minifier-saved-snapshots";
+import {
+	classifyWriteError,
+	idbDelete,
+	idbGet,
+	idbGetAll,
+	idbPut,
+	SNAPSHOTS_STORE,
+} from "./indexedDb";
 
 export type SavedSnapshot = {
 	id: string;
@@ -9,46 +16,37 @@ export type SavedSnapshot = {
 	profileColor?: string;
 };
 
-function parseStored(raw: string | null): SavedSnapshot[] {
-	if (!raw) return [];
+function isSnapshot(item: unknown): item is SavedSnapshot {
+	return (
+		typeof item === "object" &&
+		item !== null &&
+		typeof (item as SavedSnapshot).id === "string" &&
+		typeof (item as SavedSnapshot).name === "string" &&
+		typeof (item as SavedSnapshot).createdAt === "string" &&
+		typeof (item as SavedSnapshot).rawJson === "string"
+	);
+}
+
+/** Oldest first (by createdAt), preserving the legacy insertion order. */
+export async function listSnapshots(): Promise<SavedSnapshot[]> {
 	try {
-		const parsed = JSON.parse(raw) as unknown;
-		if (!Array.isArray(parsed)) return [];
-		return parsed.filter(
-			(item): item is SavedSnapshot =>
-				typeof item === "object" &&
-				item !== null &&
-				typeof (item as SavedSnapshot).id === "string" &&
-				typeof (item as SavedSnapshot).name === "string" &&
-				typeof (item as SavedSnapshot).createdAt === "string" &&
-				typeof (item as SavedSnapshot).rawJson === "string",
+		const all = (await idbGetAll<SavedSnapshot>(SNAPSHOTS_STORE)).filter(isSnapshot);
+		return all.sort(
+			(a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
 		);
 	} catch {
 		return [];
 	}
 }
 
-export function listSnapshots(): SavedSnapshot[] {
-	if (typeof window === "undefined") return [];
-	try {
-		return parseStored(localStorage.getItem(SAVED_SNAPSHOTS_STORAGE_KEY));
-	} catch {
-		return [];
-	}
-}
-
-function writeAll(snapshots: SavedSnapshot[]): void {
-	localStorage.setItem(SAVED_SNAPSHOTS_STORAGE_KEY, JSON.stringify(snapshots));
-}
-
 export type AddSnapshotError = "quota" | "unknown";
 
-export function addSnapshot(input: {
+export async function addSnapshot(input: {
 	name: string;
 	rawJson: string;
 	profileName?: string;
 	profileColor?: string;
-}): { ok: true; snapshot: SavedSnapshot } | { ok: false; error: AddSnapshotError } {
+}): Promise<{ ok: true; snapshot: SavedSnapshot } | { ok: false; error: AddSnapshotError }> {
 	const snapshot: SavedSnapshot = {
 		id: crypto.randomUUID(),
 		name: input.name.trim(),
@@ -58,41 +56,36 @@ export function addSnapshot(input: {
 		...(input.profileColor ? { profileColor: input.profileColor } : {}),
 	};
 
-	const next = [...listSnapshots(), snapshot];
-
 	try {
-		writeAll(next);
+		await idbPut(SNAPSHOTS_STORE, snapshot);
 		return { ok: true, snapshot };
 	} catch (e: unknown) {
-		const name =
-			typeof e === "object" && e !== null && "name" in e
-				? String((e as { name?: string }).name)
-				: "";
-		if (name === "QuotaExceededError" || name === "NS_ERROR_DOM_QUOTA_REACHED") {
-			return { ok: false, error: "quota" };
-		}
-		return { ok: false, error: "unknown" };
+		return { ok: false, error: classifyWriteError(e) };
 	}
 }
 
-export function removeSnapshot(id: string): void {
-	const next = listSnapshots().filter((s) => s.id !== id);
+export async function removeSnapshot(id: string): Promise<void> {
 	try {
-		writeAll(next);
+		await idbDelete(SNAPSHOTS_STORE, id);
 	} catch {
 		// ignore
 	}
 }
 
-export function getSnapshot(id: string): SavedSnapshot | undefined {
-	return listSnapshots().find((s) => s.id === id);
+export async function getSnapshot(id: string): Promise<SavedSnapshot | undefined> {
+	try {
+		const snapshot = await idbGet<SavedSnapshot>(SNAPSHOTS_STORE, id);
+		return snapshot && isSnapshot(snapshot) ? snapshot : undefined;
+	} catch {
+		return undefined;
+	}
 }
 
 /** Newest snapshot first. Returns baseline (older) and latest (newer) ids for compare. */
-export function getLatestTwoSnapshotIdsForCompare():
-	| { versionA: string; versionB: string }
-	| null {
-	const sorted = listSnapshots().slice().sort((a, b) => {
+export async function getLatestTwoSnapshotIdsForCompare(): Promise<
+	{ versionA: string; versionB: string } | null
+> {
+	const sorted = (await listSnapshots()).slice().sort((a, b) => {
 		const tb = new Date(b.createdAt).getTime();
 		const ta = new Date(a.createdAt).getTime();
 		return tb - ta;

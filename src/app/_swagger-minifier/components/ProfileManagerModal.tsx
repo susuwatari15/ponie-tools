@@ -36,11 +36,11 @@ type ProfileManagerModalProps = {
 		url: string;
 		username: string;
 		password: string;
-	}) => ProfileWriteResult;
+	}) => Promise<ProfileWriteResult>;
 	onEditProfile: (
 		id: string,
 		patch: Partial<Omit<SwaggerProfile, "id">>,
-	) => ProfileWriteResult;
+	) => Promise<ProfileWriteResult>;
 	onDeleteProfile: (id: string) => void;
 };
 
@@ -119,10 +119,10 @@ export const ProfileManagerModal: FC<ProfileManagerModalProps> = ({
 		form.reset(emptyForm);
 	};
 
-	const submit = (values: ProfileFormValues) => {
+	const submit = async (values: ProfileFormValues) => {
 		const result = editingId
-			? onEditProfile(editingId, values)
-			: onCreateProfile(values);
+			? await onEditProfile(editingId, values)
+			: await onCreateProfile(values);
 
 		if (!result.ok) {
 			setSubmitError(

@@ -18,8 +18,8 @@ const SwaggerMinifierPage: FC<SwaggerMinifierPageProps> = ({
 	const m = useSwaggerMinifier("");
 	const router = useRouter();
 
-	const handleCompareToLatestVersion = () => {
-		const pair = getLatestTwoSnapshotIdsForCompare();
+	const handleCompareToLatestVersion = async () => {
+		const pair = await getLatestTwoSnapshotIdsForCompare();
 		if (pair) {
 			router.push(`/swagger-compare?a=${pair.versionA}&b=${pair.versionB}`);
 		} else {
