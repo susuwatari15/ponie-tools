@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Braces, GitCompare, LayoutDashboard, ShieldCheck } from "lucide-react";
+import { Braces, GitCompare, LayoutDashboard, Ruler, ShieldCheck } from "lucide-react";
 
 export type NavItem = {
 	href: string;
@@ -36,6 +36,12 @@ export const TOOL_NAV_ITEMS: NavItem[] = [
 		label: "Permission Diff",
 		description: "Compare permissions across role groups",
 		icon: ShieldCheck,
+	},
+	{
+		href: "/px-to-rem",
+		label: "PX ↔ REM",
+		description: "Convert pixels and rem units",
+		icon: Ruler,
 	},
 ];
 

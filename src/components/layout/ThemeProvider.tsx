@@ -25,22 +25,30 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export const ThemeProvider: FC<{ children: ReactNode }> = ({ children }) => {
-	const [resolvedTheme, setResolvedThemeState] = useState<ResolvedTheme>(() =>
-		readStoredResolvedTheme(),
-	);
+	// Start from a fixed value so the server and the first client render agree
+	// (localStorage isn't available on the server). The real theme is adopted
+	// right after mount — the pre-paint script has already set the <html> class,
+	// so there's no visual flash, only a state catch-up.
+	const [resolvedTheme, setResolvedThemeState] = useState<ResolvedTheme>("dark");
 
 	useEffect(() => {
-		document.documentElement.classList.toggle("dark", resolvedTheme === "dark");
-	}, [resolvedTheme]);
+		setResolvedThemeState(readStoredResolvedTheme());
+	}, []);
 
 	const setResolvedTheme = useCallback((theme: ResolvedTheme) => {
 		window.localStorage.setItem(APP_THEME_STORAGE_KEY, theme);
+		document.documentElement.classList.toggle("dark", theme === "dark");
 		setResolvedThemeState(theme);
 	}, []);
 
 	const toggleTheme = useCallback(() => {
-		setResolvedTheme(resolvedTheme === "dark" ? "light" : "dark");
-	}, [resolvedTheme, setResolvedTheme]);
+		setResolvedThemeState((prev) => {
+			const next: ResolvedTheme = prev === "dark" ? "light" : "dark";
+			window.localStorage.setItem(APP_THEME_STORAGE_KEY, next);
+			document.documentElement.classList.toggle("dark", next === "dark");
+			return next;
+		});
+	}, []);
 
 	const value = useMemo(
 		() => ({
