@@ -5,6 +5,7 @@ import type { FC } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { JsonView } from "@/components/ui/JsonView";
 import { useToast } from "@/components/ui/ToastProvider";
 
 type SwaggerCompressedOutputProps = {
@@ -43,7 +44,7 @@ export const SwaggerCompressedOutput: FC<SwaggerCompressedOutputProps> = ({
   const hasOutput = Boolean(minifiedOutput);
 
   return (
-    <Card flush className="flex min-h-[560px] flex-col overflow-hidden">
+    <Card flush className="flex min-h-[560px] flex-col overflow-hidden lg:min-h-0">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
         <div className="min-w-0">
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
@@ -97,9 +98,10 @@ export const SwaggerCompressedOutput: FC<SwaggerCompressedOutputProps> = ({
             className="h-full"
           />
         ) : (
-          <pre className="scroll-ide h-full max-h-[62vh] overflow-auto rounded-lg border border-line bg-ink/40 p-3 font-mono text-xs leading-6 text-fg dark:bg-ink/60">
-            {minifiedOutput}
-          </pre>
+          <JsonView
+            value={minifiedOutput}
+            className="h-full rounded-lg border border-line bg-ink/40 p-3 dark:bg-ink/60"
+          />
         )}
       </div>
     </Card>

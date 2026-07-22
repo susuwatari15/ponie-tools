@@ -13,9 +13,9 @@ export const AppShell: FC<AppShellProps> = ({ children }) => {
 	return (
 		<SidebarProvider>
 			<CommandBarProvider>
-				<div className="flex min-h-screen flex-col text-fg">
+				<div className="flex h-dvh flex-col overflow-hidden text-fg">
 					<Header />
-					<div className="flex flex-1">
+					<div className="flex min-h-0 flex-1">
 						<Sidebar />
 						<Content>{children}</Content>
 					</div>

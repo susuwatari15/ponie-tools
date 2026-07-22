@@ -21,7 +21,7 @@ const SwaggerMinifierPage: FC = () => {
 	};
 
 	return (
-		<div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 sm:p-6">
+		<div className="mx-auto flex h-full w-full max-w-[1600px] flex-col gap-5 p-4 sm:p-6">
 			<PageHeader
 				eyebrow="// swagger · minify"
 				title="Swagger Minifier"
@@ -30,6 +30,7 @@ const SwaggerMinifierPage: FC = () => {
 			<SwaggerMinifier
 				embedded
 				m={m}
+				className="min-h-0 flex-1"
 				onNavigateToCompareLatest={handleCompareToLatestVersion}
 			/>
 		</div>

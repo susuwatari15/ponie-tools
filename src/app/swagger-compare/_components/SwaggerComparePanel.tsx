@@ -6,6 +6,7 @@ import type { FC } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { cn } from "@/components/ui/cn";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { SavedSnapshot } from "@/lib/swaggerSavedSnapshotsStorage";
@@ -25,6 +26,7 @@ type SwaggerComparePanelProps = {
   onSwitchToMinifier: () => void;
   initialSnapshotIdA?: string;
   initialSnapshotIdB?: string;
+  className?: string;
 };
 
 function snapshotLabel(s: SavedSnapshot): string {
@@ -38,6 +40,7 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
   onSwitchToMinifier,
   initialSnapshotIdA = "",
   initialSnapshotIdB = "",
+  className,
 }) => {
   const { toast } = useToast();
   const [idA, setIdA] = useState(initialSnapshotIdA);
@@ -116,9 +119,14 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
   const notEnough = snapshots.length < 2;
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+    <div
+      className={cn(
+        "grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:grid-rows-1",
+        className,
+      )}
+    >
       {/* Saved snapshots */}
-      <div className="space-y-2">
+      <div className="flex min-h-0 flex-col gap-2">
         <div className="flex items-center justify-between">
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
             // saved snapshots
@@ -142,7 +150,7 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
       </div>
 
       {/* Compare */}
-      <div className="min-w-0 space-y-5">
+      <div className="flex min-h-0 min-w-0 flex-col gap-5">
         <Card>
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
             // compare
@@ -223,14 +231,16 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
           ) : null}
         </Card>
 
-        <div>
+        <div className="flex min-h-0 flex-1 flex-col">
           <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted">
             // results
           </p>
-          <SwaggerCompareResults
-            result={compareResult}
-            rawJsonB={snapBForCopy?.rawJson}
-          />
+          <div className="scroll-ide min-h-0 flex-1 overflow-y-auto pr-1">
+            <SwaggerCompareResults
+              result={compareResult}
+              rawJsonB={snapBForCopy?.rawJson}
+            />
+          </div>
         </div>
       </div>
     </div>

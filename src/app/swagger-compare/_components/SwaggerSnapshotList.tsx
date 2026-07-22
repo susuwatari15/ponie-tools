@@ -37,7 +37,7 @@ export const SwaggerSnapshotList: FC<SwaggerSnapshotListProps> = ({
 	}
 
 	return (
-		<ul className="scroll-ide max-h-[70vh] space-y-2 overflow-y-auto">
+		<ul className="scroll-ide min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 lg:max-h-none max-h-[70vh]">
 			{snapshots.map((snap) => {
 				const isA = selectedIdA === snap.id;
 				const isB = selectedIdB === snap.id;

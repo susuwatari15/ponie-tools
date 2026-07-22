@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import type { FC } from "react";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/components/ui/cn";
 import { WORKSPACE_NAV_ITEMS } from "./constants/nav-items";
@@ -81,7 +82,16 @@ export const Sidebar: FC = () => {
 					)}
 				>
 					<div className="flex items-center justify-between border-b border-line px-4 py-3">
-						<span className="font-mono text-sm font-semibold text-fg">ponie</span>
+						<span className="flex items-center gap-2 font-mono text-sm font-semibold text-fg">
+							<Image
+								src="/android-chrome-192x192.png"
+								alt="Ponie"
+								width={24}
+								height={24}
+								className="h-6 w-6 rounded-md"
+							/>
+							ponie
+						</span>
 						<button
 							type="button"
 							onClick={closeMobile}

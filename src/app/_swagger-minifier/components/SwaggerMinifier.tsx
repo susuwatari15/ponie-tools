@@ -18,7 +18,9 @@ const SwaggerMinifier: FC<SwaggerMinifierProps> = ({
   onSnapshotSaved,
   onNavigateToCompareLatest,
 }) => (
-  <div className={`grid grid-cols-1 gap-5 lg:grid-cols-2 ${className}`.trim()}>
+  <div
+    className={`grid grid-cols-1 gap-5 lg:grid-cols-2 lg:grid-rows-1 ${className}`.trim()}
+  >
     <SwaggerInputPanel
       inputMode={m.inputMode}
       onInputModeChange={m.setInputMode}

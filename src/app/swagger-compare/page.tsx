@@ -28,7 +28,7 @@ const SwaggerCompareContent: FC = () => {
 	const handleLoadSnapshot = (rawJson: string) => writeRawJsonToStorage(rawJson);
 
 	return (
-		<div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 sm:p-6">
+		<div className="mx-auto flex h-full w-full max-w-[1600px] flex-col gap-5 p-4 sm:p-6">
 			<PageHeader
 				eyebrow="// swagger · diff"
 				title="Swagger Compare"
@@ -36,6 +36,7 @@ const SwaggerCompareContent: FC = () => {
 			/>
 
 			<SwaggerComparePanel
+				className="min-h-0 flex-1"
 				snapshots={snapshots}
 				onSnapshotsChange={refreshSnapshots}
 				onLoadSnapshot={handleLoadSnapshot}

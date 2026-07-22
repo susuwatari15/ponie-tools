@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu, PanelLeft, Search } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import type { FC } from "react";
 import { Kbd } from "@/components/ui/Kbd";
@@ -38,9 +39,14 @@ export const Header: FC = () => {
 				</button>
 
 				<Link href="/" className="flex items-center gap-2">
-					<span className="grid h-7 w-7 place-items-center rounded-md bg-accent/15 font-mono text-sm font-bold text-accent">
-						p
-					</span>
+					<Image
+						src="/android-chrome-192x192.png"
+						alt="Ponie"
+						width={28}
+						height={28}
+						priority
+						className="h-7 w-7 rounded-md"
+					/>
 					<span className="font-mono text-sm font-semibold tracking-tight text-fg">
 						ponie<span className="text-muted">/tools</span>
 					</span>
