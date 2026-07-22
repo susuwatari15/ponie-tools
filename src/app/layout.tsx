@@ -3,7 +3,6 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { AppShell } from "@/components/layout/AppShell";
 import { ToastProvider } from "@/components/ui/ToastProvider";
-import { APP_THEME_STORAGE_KEY, LEGACY_THEME_STORAGE_KEY } from "@/constants/theme-storage";
 import "./globals.css";
 
 const inter = Inter({
@@ -33,9 +32,6 @@ export const metadata: Metadata = {
 	manifest: "/site.webmanifest",
 };
 
-// Set the theme class before first paint to avoid a light-mode flash.
-const themeInitScript = `(function(){try{var k="${APP_THEME_STORAGE_KEY}",l="${LEGACY_THEME_STORAGE_KEY}";var t=localStorage.getItem(k)||localStorage.getItem(l);if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";}if(t==="dark"){document.documentElement.classList.add("dark");}}catch(e){}})();`;
-
 export default function RootLayout({
 	children,
 }: {
@@ -48,7 +44,10 @@ export default function RootLayout({
 			suppressHydrationWarning
 		>
 			<head>
-				<script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+				{/* Sets the theme class before first paint to avoid a light-mode flash.
+				    External file (not inline) so React does not warn about
+				    non-executing inline scripts on the client. */}
+				<script src="/theme-init.js" />
 			</head>
 			<body>
 				<ThemeProvider>
