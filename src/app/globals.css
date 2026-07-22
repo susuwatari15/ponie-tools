@@ -2,12 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Terminal / IDE-native design tokens.
+ * Neutrals + accent are theme-aware CSS vars (RGB channels for /alpha support).
+ * Method/diff "signal" colors live in the Badge/methodColors utilities.
+ */
 :root {
   color-scheme: light;
+
+  --ink: 244 246 250; /* page background      #F4F6FA */
+  --surface: 255 255 255; /* panels           #FFFFFF */
+  --surface-raised: 251 252 254; /* raised    #FBFCFE */
+  --line: 226 231 239; /* borders            #E2E7EF */
+  --fg: 15 23 41; /* primary text            #0F1729 */
+  --muted: 90 100 116; /* secondary text     #5A6474 */
+  --accent: 37 99 235; /* interactive        #2563EB */
 }
 
 html.dark {
   color-scheme: dark;
+
+  --ink: 11 14 20; /* #0B0E14 */
+  --surface: 19 24 34; /* #131822 */
+  --surface-raised: 26 33 48; /* #1A2130 */
+  --line: 35 43 57; /* #232B39 */
+  --fg: 228 233 242; /* #E4E9F2 */
+  --muted: 138 147 166; /* #8A93A6 */
+  --accent: 78 161 255; /* #4EA1FF */
 }
 
 html,
@@ -18,16 +39,63 @@ body,
 
 body {
   margin: 0;
-  font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  font-family: var(--font-sans), "Segoe UI", system-ui, sans-serif;
   background:
-    radial-gradient(900px circle at 12% 0%, rgba(36, 163, 255, 0.08), transparent 42%),
-    radial-gradient(700px circle at 88% 100%, rgba(71, 85, 255, 0.06), transparent 48%),
-    #f1f5f9;
+    radial-gradient(900px circle at 12% 0%, rgb(var(--accent) / 0.05), transparent 42%),
+    radial-gradient(700px circle at 88% 100%, rgb(var(--accent) / 0.04), transparent 48%),
+    rgb(var(--ink));
+  color: rgb(var(--fg));
 }
 
 html.dark body {
   background:
-    radial-gradient(1000px circle at 10% 0%, rgba(36, 163, 255, 0.15), transparent 40%),
-    radial-gradient(800px circle at 90% 100%, rgba(71, 85, 255, 0.12), transparent 45%),
-    #070a14;
+    radial-gradient(1000px circle at 10% 0%, rgb(var(--accent) / 0.14), transparent 40%),
+    radial-gradient(820px circle at 90% 100%, rgb(71 85 255 / 0.1), transparent 45%),
+    rgb(var(--ink));
+}
+
+/* The signature: HTTP-method color spectrum. Used as a hairline rule / accent. */
+.method-spectrum {
+  background: linear-gradient(
+    90deg,
+    #3dd68c 0%,
+    #3dd68c 22%,
+    #4ea1ff 22%,
+    #4ea1ff 46%,
+    #f5a623 46%,
+    #f5a623 70%,
+    #ff8a5c 70%,
+    #ff8a5c 84%,
+    #ff5c7a 84%,
+    #ff5c7a 100%
+  );
+}
+
+/* Thin, IDE-like scrollbars inside scroll regions. */
+.scroll-ide {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--muted) / 0.35) transparent;
+}
+.scroll-ide::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.scroll-ide::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--muted) / 0.3);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.scroll-ide::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(var(--muted) / 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,5 +1,8 @@
+import { FlaskConical, GitCompare } from "lucide-react";
 import type { FC } from "react";
-import { inputClasses, mutedText, panelClasses } from "../styles";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Textarea } from "@/components/ui/Textarea";
 
 type PermissionDiffInputPanelProps = {
 	group1RawJson: string;
@@ -11,6 +14,8 @@ type PermissionDiffInputPanelProps = {
 	onLoadSample: () => void;
 };
 
+const labelClass = "font-mono text-[10px] uppercase tracking-widest text-muted";
+
 export const PermissionDiffInputPanel: FC<PermissionDiffInputPanelProps> = ({
 	group1RawJson,
 	group2RawJson,
@@ -21,54 +26,52 @@ export const PermissionDiffInputPanel: FC<PermissionDiffInputPanelProps> = ({
 	onLoadSample,
 }) => {
 	return (
-		<section className={`rounded-xl border p-4 ${panelClasses}`}>
-			<h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Input</h3>
-			<label className="mt-3 flex flex-col gap-1">
-				<span className={`text-xs font-medium uppercase tracking-wide ${mutedText}`}>
-					Group 1 JSON
-				</span>
-				<textarea
+		<Card className="h-fit space-y-3">
+			<p className="font-mono text-[10px] uppercase tracking-widest text-muted">
+				// input
+			</p>
+
+			<label className="flex flex-col gap-1.5">
+				<span className={labelClass}>Group 1 JSON</span>
+				<Textarea
 					value={group1RawJson}
 					onChange={(e) => onGroup1Change(e.target.value)}
-					className={`h-48 w-full resize-y rounded-md border p-3 font-mono text-xs outline-none focus:border-accent ${inputClasses}`}
+					className="h-44 resize-y"
 					placeholder='[{"name":"Merchant Admin","permissions":[{"type":"permission","action":"GET","resource":"/api/v1/orders"}]}]'
 				/>
 			</label>
 
-			<label className="mt-3 flex flex-col gap-1">
-				<span className={`text-xs font-medium uppercase tracking-wide ${mutedText}`}>
-					Group 2 JSON
-				</span>
-				<textarea
+			<label className="flex flex-col gap-1.5">
+				<span className={labelClass}>Group 2 JSON</span>
+				<Textarea
 					value={group2RawJson}
 					onChange={(e) => onGroup2Change(e.target.value)}
-					className={`h-48 w-full resize-y rounded-md border p-3 font-mono text-xs outline-none focus:border-accent ${inputClasses}`}
+					className="h-44 resize-y"
 					placeholder='[{"name":"Ops Admin","permissions":[{"type":"permission","action":"GET","resource":"/api/v1/orders"}]}]'
 				/>
 			</label>
 
-			<div className="mt-3 flex flex-wrap gap-2">
-				<button
-					type="button"
+			<div className="flex flex-wrap gap-2">
+				<Button
+					variant="primary"
 					onClick={onCompare}
-					className="rounded-md border border-accent bg-accent/20 px-3 py-2 text-xs font-semibold text-slate-900 transition hover:bg-accent/30 dark:text-slate-100"
+					leftIcon={<GitCompare className="h-4 w-4" />}
 				>
 					Compare
-				</button>
-				<button
-					type="button"
+				</Button>
+				<Button
 					onClick={onLoadSample}
-					className="rounded-md border border-slate-400 px-3 py-2 text-xs font-semibold text-slate-800 transition hover:bg-slate-100 dark:border-slate-500/50 dark:text-slate-200 dark:hover:bg-slate-800/20"
+					leftIcon={<FlaskConical className="h-4 w-4" />}
 				>
 					Load sample
-				</button>
+				</Button>
 			</div>
 
 			{error ? (
-				<div className="mt-3 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-700/60 dark:bg-rose-950/40 dark:text-rose-200">
+				<div className="rounded-lg border border-del/40 bg-del/10 px-3 py-2 text-sm text-del">
 					{error}
 				</div>
 			) : null}
-		</section>
+		</Card>
 	);
 };

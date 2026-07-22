@@ -1,5 +1,12 @@
+"use client";
+
 import { type FC, useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { CheckCheck, Copy, GitCompare } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { cn } from "@/components/ui/cn";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { useToast } from "@/components/ui/ToastProvider";
 import type { MinifiedOperation } from "@/types/openapi";
 import type { OpenApiCompareResult } from "@/lib/openApiCompare";
 import { TextDiffUnified } from "./TextDiffUnified";
@@ -20,31 +27,32 @@ type SwaggerCompareResultsProps = {
 const buildSelectedClipboardText = (
 	selectedEndpointIds: string[],
 	rawJsonB: string,
-	format: "full" | "short"
+	format: "full" | "short",
 ): string | null => {
 	const parsedB = parseOpenApiInput(rawJsonB.trim());
 	if (parsedB.error || !parsedB.doc) return null;
-
-	if (format === "full") {
-		return minifySwagger(selectedEndpointIds, parsedB.doc);
-	}
+	if (format === "full") return minifySwagger(selectedEndpointIds, parsedB.doc);
 	return formatSwaggerEndpointsShort(parsedB.doc, selectedEndpointIds);
 };
 
-export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({ result, rawJsonB }) => {
+export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
+	result,
+	rawJsonB,
+}) => {
+	const { toast } = useToast();
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [prevResult, setPrevResult] = useState<OpenApiCompareResult | null>(null);
-	const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
 
-	// Sync state when result changes
+	// Sync selection when the result changes.
 	if (result !== prevResult) {
 		setPrevResult(result);
 		if (result && result.ok) {
-			const initial = new Set<string>([
-				...result.added.map((item) => item.id),
-				...result.changed.map((item) => item.id),
-			]);
-			setSelectedIds(initial);
+			setSelectedIds(
+				new Set<string>([
+					...result.added.map((i) => i.id),
+					...result.changed.map((i) => i.id),
+				]),
+			);
 		} else {
 			setSelectedIds(new Set());
 		}
@@ -52,229 +60,216 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({ result, 
 
 	if (!result) {
 		return (
-			<p className="text-sm text-slate-600 dark:text-slate-500">
-				Select two snapshots and click Compare to see added, removed, and changed endpoints.
-			</p>
+			<EmptyState
+				icon={GitCompare}
+				title="No comparison yet"
+				description="Select two snapshots and hit Compare to see added, removed, and changed endpoints."
+			/>
 		);
 	}
 
 	if (!result.ok) {
 		return (
-			<div className="rounded-lg border border-amber-400 bg-amber-50 p-3 dark:border-amber-700/50 dark:bg-amber-950/30">
-				<p className="text-sm text-amber-900 dark:text-amber-200">
-					{result.side === "b" ? "(Version B) " : result.side === "a" ? "(Version A) " : ""}
-					{result.error}
-				</p>
-			</div>
+			<EmptyState
+				tone="error"
+				title="Couldn't compare"
+				description={`${
+					result.side === "b" ? "(Version B) " : result.side === "a" ? "(Version A) " : ""
+				}${result.error}`}
+			/>
 		);
 	}
 
 	const { labelA, labelB, added, removed, changed } = result;
 
 	const allSelectableIds = [
-		...added.map((item) => item.id),
-		...changed.map((item) => item.id),
+		...added.map((i) => i.id),
+		...changed.map((i) => i.id),
 	];
 
 	const toggleEndpoint = (id: string) => {
-		const next = new Set(selectedIds);
-		if (next.has(id)) {
-			next.delete(id);
-		} else {
-			next.add(id);
-		}
-		setSelectedIds(next);
-	};
-
-	const handleSelectAll = () => {
-		setSelectedIds(new Set(allSelectableIds));
-	};
-
-	const handleSelectNone = () => {
-		setSelectedIds(new Set());
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
 	};
 
 	const handleCopy = async (format: "full" | "short") => {
 		if (!rawJsonB || selectedIds.size === 0) return;
-		const selectedList = Array.from(selectedIds);
-		const text = buildSelectedClipboardText(selectedList, rawJsonB, format);
+		const text = buildSelectedClipboardText(Array.from(selectedIds), rawJsonB, format);
 		if (text === null) {
-			setCopyStatus("failed");
-			window.setTimeout(() => setCopyStatus("idle"), 2000);
+			toast("Nothing to copy", "error");
 			return;
 		}
 		try {
 			await navigator.clipboard.writeText(text);
-			setCopyStatus("copied");
-			window.setTimeout(() => setCopyStatus("idle"), 2000);
+			toast(`Selected (${format}) copied`, "success");
 		} catch {
-			setCopyStatus("failed");
-			window.setTimeout(() => setCopyStatus("idle"), 2000);
+			toast("Couldn't access the clipboard", "error");
 		}
 	};
 
 	const selectableCount = allSelectableIds.length;
 	const selectedCount = selectedIds.size;
 
+	const noDiff = added.length === 0 && removed.length === 0 && changed.length === 0;
+
 	return (
-		<div className="space-y-6">
+		<div className="space-y-4">
 			{selectableCount > 0 && rawJsonB ? (
-				<div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-panelSoft/50 sm:flex-row sm:items-center sm:justify-between">
+				<Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<div className="flex flex-wrap items-center gap-3">
-						<span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-							Selected {selectedCount} of {selectableCount} endpoints
+						<span className="text-xs font-medium text-fg">
+							<span className="font-mono text-accent">{selectedCount}</span> of{" "}
+							{selectableCount} selected
 						</span>
-						<div className="flex items-center gap-2">
+						<div className="flex items-center gap-2 text-xs">
 							<button
 								type="button"
-								onClick={handleSelectAll}
-								className="text-xs text-accent hover:underline focus:outline-none"
+								onClick={() => setSelectedIds(new Set(allSelectableIds))}
+								className="font-medium text-accent hover:underline"
 							>
-								Select All
+								Select all
 							</button>
-							<span className="text-slate-300 dark:text-slate-700">|</span>
+							<span className="text-line">|</span>
 							<button
 								type="button"
-								onClick={handleSelectNone}
-								className="text-xs text-accent hover:underline focus:outline-none"
+								onClick={() => setSelectedIds(new Set())}
+								className="font-medium text-accent hover:underline"
 							>
-								Deselect All
+								Deselect all
 							</button>
 						</div>
 					</div>
-
 					<div className="flex items-center gap-2">
-						{copyStatus === "copied" ? (
-							<span className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
-								<Check className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" aria-hidden />
-								Copied Selected!
-							</span>
-						) : copyStatus === "failed" ? (
-							<span className="rounded-md border border-rose-400 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
-								Copy failed
-							</span>
-						) : (
-							<div className="flex items-center gap-2">
-								<button
-									type="button"
-									disabled={selectedCount === 0}
-									onClick={() => void handleCopy("full")}
-									className="inline-flex items-center gap-1.5 rounded-md border border-slate-400 bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-800 transition hover:border-slate-500 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
-								>
-									<Copy className="size-3.5 shrink-0 opacity-80" aria-hidden />
-									Copy Selected (JSON)
-								</button>
-								<button
-									type="button"
-									disabled={selectedCount === 0}
-									onClick={() => void handleCopy("short")}
-									className="inline-flex items-center gap-1.5 rounded-md border border-slate-400 bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-800 transition hover:border-slate-500 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 dark:hover:bg-slate-700"
-								>
-									<Copy className="size-3.5 shrink-0 opacity-80" aria-hidden />
-									Copy Selected (Short)
-								</button>
-							</div>
-						)}
+						<Button
+							size="sm"
+							disabled={selectedCount === 0}
+							onClick={() => void handleCopy("full")}
+							leftIcon={<Copy className="h-3.5 w-3.5" />}
+						>
+							Copy (JSON)
+						</Button>
+						<Button
+							size="sm"
+							disabled={selectedCount === 0}
+							onClick={() => void handleCopy("short")}
+							leftIcon={<Copy className="h-3.5 w-3.5" />}
+						>
+							Copy (Short)
+						</Button>
 					</div>
-				</div>
+				</Card>
 			) : null}
 
 			{removed.length > 0 ? (
-				<section>
-					<h3 className="mb-2 text-sm font-semibold text-rose-700 dark:text-rose-300">
-						Only in {labelA} ({removed.length})
-					</h3>
-					<ul className="space-y-2">
+				<Section title={`Only in ${labelA}`} count={removed.length} tone="del">
+					<ul className="space-y-1.5">
 						{removed.map((item) => (
 							<li
 								key={item.id}
-								className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800 dark:border-slate-700/80 dark:bg-slate-950/50 dark:text-slate-200"
+								className="rounded-lg border border-line bg-raised/40 px-3 py-2 font-mono text-xs text-fg"
 							>
-								<span className="text-emerald-700 dark:text-emerald-400/90">{item.id}</span>
+								<span className="text-rose-600 dark:text-rose-300">{item.id}</span>
 								{item.summary ? (
-									<span className="ml-2 text-slate-500">{item.summary}</span>
+									<span className="ml-2 text-muted">{item.summary}</span>
 								) : null}
 							</li>
 						))}
 					</ul>
-				</section>
+				</Section>
 			) : null}
 
 			{added.length > 0 ? (
-				<section>
-					<h3 className="mb-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-						Only in {labelB} ({added.length})
-					</h3>
-					<ul className="space-y-2">
-						{added.map((item) => {
-							const isChecked = selectedIds.has(item.id);
-							return (
-								<li
-									key={item.id}
-									className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800 dark:border-slate-700/80 dark:bg-slate-950/50 dark:text-slate-200"
-								>
+				<Section title={`Only in ${labelB}`} count={added.length} tone="get">
+					<ul className="space-y-1.5">
+						{added.map((item) => (
+							<li key={item.id}>
+								<label className="flex cursor-pointer items-center gap-3 rounded-lg border border-line bg-raised/40 px-3 py-2 font-mono text-xs text-fg">
 									<input
 										type="checkbox"
-										checked={isChecked}
+										checked={selectedIds.has(item.id)}
 										onChange={() => toggleEndpoint(item.id)}
-										className="h-4.5 w-4.5 rounded border-slate-300 text-accent focus:ring-accent dark:border-slate-700 dark:bg-slate-900 cursor-pointer"
+										className="h-4 w-4 shrink-0 rounded border-line text-accent focus:ring-accent"
 									/>
-									<div className="min-w-0 flex-1">
-										<span className="text-emerald-700 dark:text-emerald-400/90">{item.id}</span>
+									<span className="min-w-0 flex-1">
+										<span className="text-emerald-600 dark:text-emerald-300">
+											{item.id}
+										</span>
 										{item.summary ? (
-											<span className="ml-2 text-slate-500">{item.summary}</span>
+											<span className="ml-2 text-muted">{item.summary}</span>
 										) : null}
-									</div>
-								</li>
-							);
-						})}
+									</span>
+								</label>
+							</li>
+						))}
 					</ul>
-				</section>
+				</Section>
 			) : null}
 
 			{changed.length > 0 ? (
-				<section>
-					<h3 className="mb-2 text-sm font-semibold text-amber-800 dark:text-amber-200">
-						Changed ({changed.length})
-					</h3>
-					<ul className="space-y-4">
-						{changed.map((row) => {
-							const isChecked = selectedIds.has(row.id);
-							return (
-								<li
-									key={row.id}
-									className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700/80 dark:bg-slate-950/40"
-								>
-									<div className="flex items-center gap-3 border-b border-slate-200 px-3 py-2 font-mono text-xs text-emerald-800 dark:border-slate-700/70 dark:text-emerald-300">
-										<input
-											type="checkbox"
-											checked={isChecked}
-											onChange={() => toggleEndpoint(row.id)}
-											className="h-4.5 w-4.5 rounded border-slate-300 text-accent focus:ring-accent dark:border-slate-700 dark:bg-slate-900 cursor-pointer"
-										/>
-										<span>{row.id}</span>
-									</div>
-									<div className="p-3">
-										<TextDiffUnified
-											labelA={labelA}
-											labelB={labelB}
-											oldText={formatOp(row.left)}
-											newText={formatOp(row.right)}
-										/>
-									</div>
-								</li>
-							);
-						})}
+				<Section title="Changed" count={changed.length} tone="put">
+					<ul className="space-y-3">
+						{changed.map((row) => (
+							<li
+								key={row.id}
+								className="overflow-hidden rounded-lg border border-line bg-surface"
+							>
+								<label className="flex cursor-pointer items-center gap-3 border-b border-line px-3 py-2 font-mono text-xs text-amber-700 dark:text-amber-200">
+									<input
+										type="checkbox"
+										checked={selectedIds.has(row.id)}
+										onChange={() => toggleEndpoint(row.id)}
+										className="h-4 w-4 shrink-0 rounded border-line text-accent focus:ring-accent"
+									/>
+									<span>{row.id}</span>
+								</label>
+								<div className="p-3">
+									<TextDiffUnified
+										labelA={labelA}
+										labelB={labelB}
+										oldText={formatOp(row.left)}
+										newText={formatOp(row.right)}
+									/>
+								</div>
+							</li>
+						))}
 					</ul>
-				</section>
+				</Section>
 			) : null}
 
-			{added.length === 0 && removed.length === 0 && changed.length === 0 ? (
-				<p className="text-sm text-slate-600 dark:text-slate-400">
-					No API differences found between the two snapshots (using minified request/response
-					shape).
-				</p>
+			{noDiff ? (
+				<EmptyState
+					icon={CheckCheck}
+					title="No differences"
+					description="The two snapshots share the same minified request/response shape."
+				/>
 			) : null}
 		</div>
 	);
 };
+
+const toneClasses: Record<"get" | "del" | "put", string> = {
+	get: "text-emerald-600 dark:text-emerald-300",
+	del: "text-rose-600 dark:text-rose-300",
+	put: "text-amber-700 dark:text-amber-200",
+};
+
+const Section: FC<{
+	title: string;
+	count: number;
+	tone: "get" | "del" | "put";
+	children: React.ReactNode;
+}> = ({ title, count, tone, children }) => (
+	<section>
+		<h3 className={cn("mb-2 flex items-center gap-2 text-sm font-semibold", toneClasses[tone])}>
+			{title}
+			<span className="rounded-full border border-current/30 px-2 py-0.5 text-xs">
+				{count}
+			</span>
+		</h3>
+		{children}
+	</section>
+);

@@ -1,9 +1,10 @@
 export { AppShell } from "./AppShell";
+export { CommandBarProvider, useCommandBar } from "./CommandBar";
 export { Content } from "./Content";
 export { NavLink } from "./NavLink";
 export { PageHeader } from "./PageHeader";
 export { Header } from "./Header";
 export { Sidebar } from "./Sidebar";
 export { SidebarProvider, useSidebar } from "./SidebarProvider";
-export { SidebarToggle } from "./SidebarToggle";
+export { ThemeToggle } from "./ThemeToggle";
 export { ThemeProvider, useTheme } from "./ThemeProvider";

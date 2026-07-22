@@ -1,15 +1,20 @@
 import type { ChangeEvent, FC } from "react";
 import { GitCompare } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import type { EndpointItem, HttpMethod } from "@/types/openapi";
 import type { ParsedOpenApiInput } from "@/lib/openApiInput";
 import type { SwaggerProfile } from "@/lib/swaggerProfilesStorage";
-import { panelClasses } from "../styles";
 import { SwaggerEndpointList } from "./SwaggerEndpointList";
 import { SwaggerEndpointSearch } from "./SwaggerEndpointSearch";
 import { SwaggerInputModeToggle } from "./SwaggerInputModeToggle";
 import { SwaggerManualJsonInput } from "./SwaggerManualJsonInput";
 import { SwaggerParseStatus } from "./SwaggerParseStatus";
 import { SwaggerUrlFetchForm } from "./SwaggerUrlFetchForm";
+
+type ProfileWriteResult =
+	| { ok: true; profile: SwaggerProfile }
+	| { ok: false; error: string };
 
 type SwaggerInputPanelProps = {
 	inputMode: "manual" | "url";
@@ -32,17 +37,11 @@ type SwaggerInputPanelProps = {
 		url: string;
 		username: string;
 		password: string;
-	}) => Promise<
-		| { ok: true; profile: SwaggerProfile }
-		| { ok: false; error: string }
-	>;
+	}) => Promise<ProfileWriteResult>;
 	onEditProfile: (
 		id: string,
 		patch: Partial<Omit<SwaggerProfile, "id">>,
-	) => Promise<
-		| { ok: true; profile: SwaggerProfile }
-		| { ok: false; error: string }
-	>;
+	) => Promise<ProfileWriteResult>;
 	onDeleteProfile: (id: string) => void;
 	parsed: ParsedOpenApiInput;
 	allEndpoints: EndpointItem[];
@@ -89,12 +88,12 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 	selectedIds,
 	onToggleSelection,
 }) => (
-	<section className={`flex min-h-[640px] flex-col overflow-hidden rounded-xl border ${panelClasses}`}>
-		<div className="border-b border-slate-200 p-3 dark:border-slate-700/70">
-			<SwaggerInputModeToggle
-				inputMode={inputMode}
-				onModeChange={onInputModeChange}
-			/>
+	<Card flush className="flex min-h-[560px] flex-col overflow-hidden">
+		<div className="border-b border-line p-4">
+			<p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted">
+				// input
+			</p>
+			<SwaggerInputModeToggle inputMode={inputMode} onModeChange={onInputModeChange} />
 
 			{inputMode === "manual" ? (
 				<SwaggerManualJsonInput
@@ -127,15 +126,14 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 			/>
 
 			{onNavigateToCompareLatest ? (
-				<div className="mt-3 flex flex-wrap">
-					<button
-						type="button"
+				<div className="mt-3">
+					<Button
+						size="sm"
 						onClick={onNavigateToCompareLatest}
-						className="inline-flex items-center gap-2 rounded-md border border-slate-400 bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-800 transition hover:border-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400"
+						leftIcon={<GitCompare className="h-4 w-4" />}
 					>
-						<GitCompare className="h-4 w-4 shrink-0" aria-hidden />
 						Compare to latest version
-					</button>
+					</Button>
 				</div>
 			) : null}
 		</div>
@@ -158,5 +156,5 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 			selectedIds={selectedIds}
 			onToggleSelection={onToggleSelection}
 		/>
-	</section>
+	</Card>
 );

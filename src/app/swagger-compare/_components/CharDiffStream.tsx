@@ -38,7 +38,7 @@ export const CharDiffStream: FC<CharDiffStreamProps> = ({ oldText, newText }) =>
 						);
 					}
 					return (
-						<span key={spanKey} className="text-slate-800 dark:text-slate-300">
+						<span key={spanKey} className="text-fg/80">
 							{part.value}
 						</span>
 					);

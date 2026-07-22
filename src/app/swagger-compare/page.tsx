@@ -5,7 +5,6 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SwaggerComparePanel } from "./_components/SwaggerComparePanel";
-import { mutedText, panelClasses, themeClasses } from "./styles";
 import type { SavedSnapshot } from "@/lib/swaggerSavedSnapshotsStorage";
 import { listSnapshots } from "@/lib/swaggerSavedSnapshotsStorage";
 import { writeRawJsonToStorage } from "@/lib/swaggerRawJsonStorage";
@@ -29,21 +28,18 @@ const SwaggerCompareContent: FC = () => {
 	const handleLoadSnapshot = (rawJson: string) => writeRawJsonToStorage(rawJson);
 
 	return (
-		<div className={`w-full space-y-4 p-4 lg:p-4 ${themeClasses}`}>
+		<div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 sm:p-6">
 			<PageHeader
+				eyebrow="// swagger · diff"
 				title="Swagger Compare"
-				titleAs="h1"
-				titleClassName="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-100"
 				description="Compare two saved snapshots to see added, removed, and changed endpoints."
-				descriptionClassName={`text-sm ${mutedText}`}
-				wrapperClassName={`rounded-xl border px-4 py-3 ${panelClasses}`}
 			/>
 
 			<SwaggerComparePanel
 				snapshots={snapshots}
 				onSnapshotsChange={refreshSnapshots}
 				onLoadSnapshot={handleLoadSnapshot}
-				onSwitchToMinifier={() => router.push("/")}
+				onSwitchToMinifier={() => router.push("/minifier")}
 				initialSnapshotIdA={initialSnapshotIdA}
 				initialSnapshotIdB={initialSnapshotIdB}
 			/>

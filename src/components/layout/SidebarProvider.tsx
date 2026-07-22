@@ -14,9 +14,15 @@ import {
 const SIDEBAR_STORAGE_KEY = "ponie-sidebar-collapsed";
 
 type SidebarContextValue = {
+	/** Desktop: sidebar column collapsed (hidden). */
 	collapsed: boolean;
 	setCollapsed: (collapsed: boolean) => void;
 	toggleSidebar: () => void;
+	/** Mobile: slide-over drawer open. */
+	mobileOpen: boolean;
+	openMobile: () => void;
+	closeMobile: () => void;
+	toggleMobile: () => void;
 };
 
 const SidebarContext = createContext<SidebarContextValue | null>(null);
@@ -34,6 +40,7 @@ export const SidebarProvider: FC<{ children: ReactNode }> = ({ children }) => {
 	const [collapsed, setCollapsedState] = useState<boolean>(() =>
 		readStoredCollapsed(),
 	);
+	const [mobileOpen, setMobileOpen] = useState(false);
 
 	const setCollapsed = useCallback((next: boolean) => {
 		setCollapsedState(next);
@@ -48,6 +55,10 @@ export const SidebarProvider: FC<{ children: ReactNode }> = ({ children }) => {
 		setCollapsed(!collapsed);
 	}, [collapsed, setCollapsed]);
 
+	const openMobile = useCallback(() => setMobileOpen(true), []);
+	const closeMobile = useCallback(() => setMobileOpen(false), []);
+	const toggleMobile = useCallback(() => setMobileOpen((v) => !v), []);
+
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
 			if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
@@ -60,8 +71,16 @@ export const SidebarProvider: FC<{ children: ReactNode }> = ({ children }) => {
 	}, [toggleSidebar]);
 
 	const value = useMemo(
-		() => ({ collapsed, setCollapsed, toggleSidebar }),
-		[collapsed, setCollapsed, toggleSidebar],
+		() => ({
+			collapsed,
+			setCollapsed,
+			toggleSidebar,
+			mobileOpen,
+			openMobile,
+			closeMobile,
+			toggleMobile,
+		}),
+		[collapsed, setCollapsed, toggleSidebar, mobileOpen, openMobile, closeMobile, toggleMobile],
 	);
 
 	return (

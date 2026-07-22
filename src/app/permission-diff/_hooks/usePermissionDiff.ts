@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useToast } from "@/components/ui/ToastProvider";
 import { SAMPLE_GROUP_1_JSON, SAMPLE_GROUP_2_JSON } from "../_constants/samples";
 import { copyText } from "../_lib/copyToClipboard";
 import { formatPermissionShortList, type PermissionCopyFormat } from "../_lib/formatPermissionShortList";
@@ -6,13 +7,6 @@ import { parseAndCompare } from "../_lib/parsePermissions";
 import type { CompareResult, PermissionEntry, SectionId } from "../types";
 
 export type AllGroupView = "group1" | "group2";
-
-const initialCopyStatus: Record<SectionId, string | null> = {
-	only1: null,
-	only2: null,
-	common: null,
-	all: null,
-};
 
 const initialOpenSections: Record<SectionId, boolean> = {
 	only1: true,
@@ -22,13 +16,12 @@ const initialOpenSections: Record<SectionId, boolean> = {
 };
 
 export function usePermissionDiff() {
+	const { toast } = useToast();
 	const [group1RawJson, setGroup1RawJson] = useState("");
 	const [group2RawJson, setGroup2RawJson] = useState("");
 	const [searchQuery, setSearchQuery] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [result, setResult] = useState<CompareResult | null>(null);
-	const [copyStatusMap, setCopyStatusMap] =
-		useState<Record<SectionId, string | null>>(initialCopyStatus);
 	const [allGroupView, setAllGroupView] = useState<AllGroupView>("group1");
 	const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>(initialOpenSections);
 
@@ -56,7 +49,6 @@ export function usePermissionDiff() {
 
 	const handleCompare = () => {
 		setError(null);
-		setCopyStatusMap({ only1: null, only2: null, common: null, all: null });
 		try {
 			const next = parseAndCompare(group1RawJson, group2RawJson);
 			setResult(next);
@@ -67,15 +59,8 @@ export function usePermissionDiff() {
 		}
 	};
 
-	const setCopied = (id: SectionId, value: string) => {
-		setCopyStatusMap((prev) => ({ ...prev, [id]: value }));
-		window.setTimeout(() => {
-			setCopyStatusMap((prev) => ({ ...prev, [id]: null }));
-		}, 2000);
-	};
-
 	const handleCopyJson = async (
-		id: SectionId,
+		_id: SectionId,
 		items: PermissionEntry[],
 		format: PermissionCopyFormat,
 		moduleLabel: string
@@ -90,14 +75,14 @@ export function usePermissionDiff() {
 						)
 					: formatPermissionShortList(moduleLabel, items);
 			await copyText(payload);
-			setCopied(id, format === "full" ? "Copied JSON" : "Copied short list");
+			toast(format === "full" ? "Copied JSON" : "Copied short list", "success");
 		} catch {
-			setCopied(id, "Copy failed");
+			toast("Copy failed", "error");
 		}
 	};
 
 	const handleCopyText = async (
-		id: SectionId,
+		_id: SectionId,
 		items: PermissionEntry[],
 		format: PermissionCopyFormat,
 		moduleLabel: string
@@ -108,9 +93,9 @@ export function usePermissionDiff() {
 					? items.map((item) => `[${item.action || item.type}] ${item.resource}`).join("\n")
 					: formatPermissionShortList(moduleLabel, items);
 			await copyText(payload);
-			setCopied(id, format === "full" ? "Copied text list" : "Copied short list");
+			toast(format === "full" ? "Copied text list" : "Copied short list", "success");
 		} catch {
-			setCopied(id, "Copy failed");
+			toast("Copy failed", "error");
 		}
 	};
 
@@ -134,7 +119,6 @@ export function usePermissionDiff() {
 		allGroupView,
 		setAllGroupView,
 		openSections,
-		copyStatusMap,
 		toggleSection,
 		handleCompare,
 		handleCopyJson,

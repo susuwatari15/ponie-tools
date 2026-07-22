@@ -1,4 +1,4 @@
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import type { FC } from "react";
 
 type SwaggerParseStatusProps = {
@@ -12,18 +12,19 @@ export const SwaggerParseStatus: FC<SwaggerParseStatusProps> = ({
 	endpointCount,
 	hasDoc,
 }) => (
-	<div className="mt-2 flex flex-wrap items-center gap-2">
+	<div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
 		{error ? (
-			<span className="inline-flex items-center gap-1 text-xs text-rose-600 dark:text-rose-300">
+			<span className="inline-flex items-center gap-1.5 rounded-md border border-del/40 bg-del/10 px-2 py-1 text-del">
 				<AlertTriangle className="h-3.5 w-3.5" />
 				{error}
 			</span>
 		) : hasDoc ? (
-			<span className="text-xs text-emerald-700 dark:text-emerald-300">
-				{endpointCount} endpoints detected.
+			<span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+				<CheckCircle2 className="h-3.5 w-3.5" />
+				{endpointCount} endpoints detected
 			</span>
 		) : (
-			<span className="text-xs text-slate-500 dark:text-slate-400">Paste JSON to start.</span>
+			<span className="text-muted">Paste JSON to start.</span>
 		)}
 	</div>
 );

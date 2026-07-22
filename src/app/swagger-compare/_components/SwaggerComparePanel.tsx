@@ -1,7 +1,13 @@
+"use client";
+
 import { format } from "date-fns";
-import { Check, Copy } from "lucide-react";
+import { Copy, GitCompare } from "lucide-react";
 import type { FC } from "react";
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Select } from "@/components/ui/Select";
+import { useToast } from "@/components/ui/ToastProvider";
 import type { SavedSnapshot } from "@/lib/swaggerSavedSnapshotsStorage";
 import { removeSnapshot } from "@/lib/swaggerSavedSnapshotsStorage";
 import {
@@ -21,6 +27,10 @@ type SwaggerComparePanelProps = {
   initialSnapshotIdB?: string;
 };
 
+function snapshotLabel(s: SavedSnapshot): string {
+  return `${s.name} — ${format(new Date(s.createdAt), "yyyy-MM-dd HH:mm")}`;
+}
+
 export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
   snapshots,
   onSnapshotsChange,
@@ -29,22 +39,15 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
   initialSnapshotIdA = "",
   initialSnapshotIdB = "",
 }) => {
+  const { toast } = useToast();
   const [idA, setIdA] = useState(initialSnapshotIdA);
   const [idB, setIdB] = useState(initialSnapshotIdB);
   const [compareResult, setCompareResult] =
     useState<OpenApiCompareResult | null>(null);
-  const [copyNewChangedStatus, setCopyNewChangedStatus] = useState<
-    "idle" | "copied" | "failed"
-  >("idle");
 
-  const options = snapshots.map((s) => (
-    <option key={s.id} value={s.id}>
-      {s.name} — {format(new Date(s.createdAt), "yyyy-MM-dd HH:mm")}
-    </option>
-  ));
+  const resetResult = () => setCompareResult(null);
 
   const handleLoad = async (snap: SavedSnapshot) => {
-    // Persist the draft before navigating; the minifier reads it on mount.
     await onLoadSnapshot(snap.rawJson);
     onSwitchToMinifier();
   };
@@ -54,49 +57,39 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
     onSnapshotsChange();
     if (idA === id) setIdA("");
     if (idB === id) setIdB("");
-    setCompareResult(null);
-    setCopyNewChangedStatus("idle");
+    resetResult();
+    toast("Snapshot deleted", "success");
   };
 
   const selectAsA = (id: string) => {
     setIdA(id);
-    setCompareResult(null);
-    setCopyNewChangedStatus("idle");
+    resetResult();
     if (idB === id) setIdB("");
   };
 
   const selectAsB = (id: string) => {
     setIdB(id);
-    setCompareResult(null);
-    setCopyNewChangedStatus("idle");
+    resetResult();
     if (idA === id) setIdA("");
   };
 
   const handleCompare = () => {
-    setCopyNewChangedStatus("idle");
     if (!idA || !idB || idA === idB) {
-      setCompareResult({
-        ok: false,
-        error: "Pick two different snapshots.",
-      });
+      setCompareResult({ ok: false, error: "Pick two different snapshots." });
       return;
     }
-
     const snapA = snapshots.find((s) => s.id === idA);
     const snapB = snapshots.find((s) => s.id === idB);
     if (!snapA || !snapB) {
-      setCompareResult({
-        ok: false,
-        error: "Snapshot not found. Refresh the list.",
-      });
+      setCompareResult({ ok: false, error: "Snapshot not found. Refresh the list." });
       return;
     }
-
-    const result = compareOpenApiRawJson(snapA.rawJson, snapB.rawJson, {
-      labelA: snapA.name,
-      labelB: snapB.name,
-    });
-    setCompareResult(result);
+    setCompareResult(
+      compareOpenApiRawJson(snapA.rawJson, snapB.rawJson, {
+        labelA: snapA.name,
+        labelB: snapB.name,
+      }),
+    );
   };
 
   const snapBForCopy = idB ? snapshots.find((s) => s.id === idB) : undefined;
@@ -105,38 +98,37 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
     compareResult.added.length + compareResult.changed.length > 0 &&
     Boolean(snapBForCopy?.rawJson);
 
-  const handleCopyNewAndChanged = async (format: "full" | "short") => {
+  const handleCopyNewAndChanged = async (fmt: "full" | "short") => {
     if (!compareResult?.ok || !snapBForCopy?.rawJson) return;
-    const text = buildNewChangedClipboardText(
-      compareResult,
-      snapBForCopy.rawJson,
-      format,
-    );
+    const text = buildNewChangedClipboardText(compareResult, snapBForCopy.rawJson, fmt);
     if (text === null) {
-      setCopyNewChangedStatus("failed");
-      window.setTimeout(() => setCopyNewChangedStatus("idle"), 2000);
+      toast("Nothing to copy", "error");
       return;
     }
     try {
       await navigator.clipboard.writeText(text);
-      setCopyNewChangedStatus("copied");
-      window.setTimeout(() => setCopyNewChangedStatus("idle"), 2000);
+      toast(`New & changed (${fmt}) copied`, "success");
     } catch {
-      setCopyNewChangedStatus("failed");
-      window.setTimeout(() => setCopyNewChangedStatus("idle"), 2000);
+      toast("Couldn't access the clipboard", "error");
     }
   };
 
+  const notEnough = snapshots.length < 2;
+
   return (
-    <div className="flex flex-col gap-6 lg:flex-row">
-      <div className="lg:w-1/3">
-        <h2 className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
-          Saved snapshots
-        </h2>
-        <p className="mb-2 text-xs text-slate-500">
-          Click <span className="font-mono text-rose-300/90">A</span> or{" "}
-          <span className="font-mono text-emerald-300/90">B</span> on a row to
-          pick versions for compare (or use the dropdowns on the right).
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+      {/* Saved snapshots */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
+            // saved snapshots
+          </p>
+        </div>
+        <p className="text-xs text-muted">
+          Tag any two rows as{" "}
+          <span className="font-mono text-rose-500">A</span> and{" "}
+          <span className="font-mono text-emerald-500">B</span>, or use the
+          selectors on the right.
         </p>
         <SwaggerSnapshotList
           snapshots={snapshots}
@@ -149,103 +141,96 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
         />
       </div>
 
-      <div className="min-w-0 flex-1 space-y-4">
-        <div>
-          <h2 className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
-            Compare two versions
-          </h2>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-            {/* <label className="flex min-w-[160px] flex-1 flex-col gap-1">
-							<span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
-								Version A (baseline)
-							</span>
-							<select
-								value={idA}
-								onChange={(e) => {
-									setIdA(e.target.value);
-									setCompareResult(null);
-									setCopyNewChangedStatus("idle");
-								}}
-								className="rounded-md border border-slate-300 bg-white px-2 py-2 text-xs text-slate-900 outline-none focus:border-accent dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-200"
-							>
-								<option value="">Select snapshot…</option>
-								{options}
-							</select>
-						</label>
-						<label className="flex min-w-[160px] flex-1 flex-col gap-1">
-							<span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
-								Version B
-							</span>
-							<select
-								value={idB}
-								onChange={(e) => {
-									setIdB(e.target.value);
-									setCompareResult(null);
-									setCopyNewChangedStatus("idle");
-								}}
-								className="rounded-md border border-slate-300 bg-white px-2 py-2 text-xs text-slate-900 outline-none focus:border-accent dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-200"
-							>
-								<option value="">Select snapshot…</option>
-								{options}
-							</select>
-						</label> */}
-            <button
-              type="button"
+      {/* Compare */}
+      <div className="min-w-0 space-y-5">
+        <Card>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
+            // compare
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1.5">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-muted">
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-rose-500/15 font-mono text-[10px] font-semibold text-rose-500">
+                  A
+                </span>
+                Baseline
+              </span>
+              <Select
+                value={idA}
+                onChange={(e) => selectAsA(e.target.value)}
+                disabled={notEnough}
+              >
+                <option value="">Select snapshot…</option>
+                {snapshots.map((s) => (
+                  <option key={s.id} value={s.id} disabled={s.id === idB}>
+                    {snapshotLabel(s)}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-muted">
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-emerald-500/15 font-mono text-[10px] font-semibold text-emerald-500">
+                  B
+                </span>
+                Compare against
+              </span>
+              <Select
+                value={idB}
+                onChange={(e) => selectAsB(e.target.value)}
+                disabled={notEnough}
+              >
+                <option value="">Select snapshot…</option>
+                {snapshots.map((s) => (
+                  <option key={s.id} value={s.id} disabled={s.id === idA}>
+                    {snapshotLabel(s)}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              variant="primary"
               onClick={handleCompare}
-              disabled={snapshots.length < 2}
-              className="rounded-md border border-accent bg-accent/20 px-4 py-2 text-xs font-medium text-slate-900 transition hover:bg-accent/30 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-100"
+              disabled={notEnough}
+              leftIcon={<GitCompare className="h-4 w-4" />}
             >
               Compare
-            </button>
-            {/* <div className="flex items-center gap-2">
-              {copyNewChangedStatus === "copied" ? (
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-400 bg-slate-100 px-3 py-2 text-xs text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
-                  <Check className="h-4 w-4 text-emerald-300" aria-hidden />
-                  Copied!
-                </span>
-              ) : copyNewChangedStatus === "failed" ? (
-                <span className="rounded-md border border-rose-400 bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:border-rose-700/60 dark:bg-rose-950/40 dark:text-rose-200">
-                  Copy failed
-                </span>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    disabled={!canCopyNewAndChanged}
-                    title="Uses last compare results and current Version B snapshot. Re-run Compare after changing versions."
-                    onClick={() => void handleCopyNewAndChanged("full")}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-400 bg-slate-100 px-2.5 py-2 text-xs text-slate-800 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400"
-                  >
-                    <Copy
-                      className="size-3.5 shrink-0 opacity-80"
-                      aria-hidden
-                    />
-                    Full (JSON)
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!canCopyNewAndChanged}
-                    title="Uses last compare results and current Version B snapshot. Re-run Compare after changing versions."
-                    onClick={() => void handleCopyNewAndChanged("short")}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-slate-400 bg-slate-100 px-2.5 py-2 text-xs text-slate-800 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400"
-                  >
-                    <Copy
-                      className="size-3.5 shrink-0 opacity-80"
-                      aria-hidden
-                    />
-                    Short
-                  </button>
-                </div>
-              )}
-            </div> */}
+            </Button>
+            <Button
+              disabled={!canCopyNewAndChanged}
+              onClick={() => void handleCopyNewAndChanged("full")}
+              title="Copy the new & changed operations from B (full JSON)"
+              leftIcon={<Copy className="h-3.5 w-3.5" />}
+            >
+              New &amp; changed (JSON)
+            </Button>
+            <Button
+              disabled={!canCopyNewAndChanged}
+              onClick={() => void handleCopyNewAndChanged("short")}
+              title="Copy the new & changed operations from B (short list)"
+              leftIcon={<Copy className="h-3.5 w-3.5" />}
+            >
+              Short
+            </Button>
           </div>
-        </div>
+          {notEnough ? (
+            <p className="mt-3 text-xs text-muted">
+              Save at least two snapshots in the Minifier to compare.
+            </p>
+          ) : null}
+        </Card>
 
         <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Results
-          </h3>
-          <SwaggerCompareResults result={compareResult} rawJsonB={snapBForCopy?.rawJson} />
+          <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted">
+            // results
+          </p>
+          <SwaggerCompareResults
+            result={compareResult}
+            rawJsonB={snapBForCopy?.rawJson}
+          />
         </div>
       </div>
     </div>

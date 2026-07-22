@@ -1,94 +1,107 @@
-import { Check, Copy } from "lucide-react";
+"use client";
+
+import { Copy, FileJson } from "lucide-react";
 import type { FC } from "react";
-import { panelClasses } from "../styles";
-import type { SwaggerMinifierCopyFormat } from "../hooks/useSwaggerMinifier";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { useToast } from "@/components/ui/ToastProvider";
 
 type SwaggerCompressedOutputProps = {
   hasParseError: boolean;
   selectedCount: number;
   minifiedOutput: string;
   minifiedOutputShort: string;
-  copied: boolean;
-  onCopyFormat: (format: SwaggerMinifierCopyFormat) => void;
 };
-
-const copyBtnClass =
-  "inline-flex items-center gap-1.5 rounded-md border border-slate-400 bg-slate-100 px-2.5 py-1.5 text-xs text-slate-800 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400";
 
 export const SwaggerCompressedOutput: FC<SwaggerCompressedOutputProps> = ({
   hasParseError,
   selectedCount,
   minifiedOutput,
   minifiedOutputShort,
-  copied,
-  onCopyFormat,
 }) => {
-  const canCopyFull = Boolean(minifiedOutput);
-  const canCopyShort = Boolean(minifiedOutputShort);
-  const canCopyMinified = Boolean(minifiedOutput);
+  const { toast } = useToast();
+
+  const copy = async (label: string, text: string) => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(`${label} copied to clipboard`, "success");
+    } catch {
+      toast("Couldn't access the clipboard", "error");
+    }
+  };
+
+  const minifiedString = (() => {
+    try {
+      return JSON.stringify(JSON.parse(minifiedOutput));
+    } catch {
+      return minifiedOutput;
+    }
+  })();
+
+  const hasOutput = Boolean(minifiedOutput);
 
   return (
-    <section
-      className={`flex min-h-[640px] flex-col overflow-hidden rounded-xl border ${panelClasses}`}
-    >
-      <div className="flex items-center justify-between gap-2 border-b border-slate-200 p-3 dark:border-slate-700/70">
+    <Card flush className="flex min-h-[560px] flex-col overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
         <div className="min-w-0">
-          <h2 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-            Compressed Output
-          </h2>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
+            // output
+          </p>
+          <h2 className="text-sm font-semibold text-fg">Compressed spec</h2>
         </div>
-
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-          {copied ? (
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-400 bg-slate-100 px-3 py-1.5 text-xs text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100">
-              <Check className="h-4 w-4 text-emerald-300" aria-hidden />
-              Copied!
-            </span>
-          ) : (
-            <>
-              <button
-                type="button"
-                disabled={!canCopyFull}
-                onClick={() => onCopyFormat("full")}
-                className={copyBtnClass}
-              >
-                <Copy className="size-3.5 shrink-0 opacity-80" aria-hidden />
-                Full (JSON)
-              </button>
-              <button
-                type="button"
-                disabled={!canCopyShort}
-                onClick={() => onCopyFormat("short")}
-                title="Module + endpoint list"
-                className={copyBtnClass}
-              >
-                <Copy className="size-3.5 shrink-0 opacity-80" aria-hidden />
-                Short
-              </button>
-              <button
-                type="button"
-                disabled={!canCopyMinified}
-                onClick={() => onCopyFormat("minified")}
-                title="Compact JSON string"
-                className={copyBtnClass}
-              >
-                <Copy className="size-3.5 shrink-0 opacity-80" aria-hidden />
-                Copy Minified
-              </button>
-            </>
-          )}
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <Button
+            size="sm"
+            disabled={!hasOutput}
+            onClick={() => copy("Full JSON", minifiedOutput)}
+            leftIcon={<FileJson className="h-3.5 w-3.5" />}
+          >
+            Full JSON
+          </Button>
+          <Button
+            size="sm"
+            disabled={!minifiedOutputShort}
+            onClick={() => copy("Short list", minifiedOutputShort)}
+            title="Module + endpoint list"
+            leftIcon={<Copy className="h-3.5 w-3.5" />}
+          >
+            Short
+          </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!hasOutput}
+            onClick={() => copy("Minified JSON", minifiedString)}
+            title="Compact single-line JSON"
+            leftIcon={<Copy className="h-3.5 w-3.5" />}
+          >
+            Minified
+          </Button>
         </div>
       </div>
 
-      <div className="h-[40vh] min-h-[300px] p-3 lg:h-[70vh]">
-        <pre className="h-full overflow-auto rounded-md border border-slate-200 bg-slate-50 p-3 font-mono text-xs leading-6 text-slate-800 dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-200">
-          {hasParseError
-            ? "// Fix invalid JSON to generate output."
-            : selectedCount === 0
-              ? "// Select one or more endpoints from the left pane."
-              : minifiedOutput}
-        </pre>
+      <div className="min-h-0 flex-1 p-3">
+        {hasParseError ? (
+          <EmptyState
+            tone="error"
+            title="Invalid JSON"
+            description="Fix the input on the left to generate a compressed spec."
+            className="h-full"
+          />
+        ) : selectedCount === 0 ? (
+          <EmptyState
+            title="Nothing selected yet"
+            description="Pick one or more endpoints from the left pane to build a prompt-ready spec."
+            className="h-full"
+          />
+        ) : (
+          <pre className="scroll-ide h-full max-h-[62vh] overflow-auto rounded-lg border border-line bg-ink/40 p-3 font-mono text-xs leading-6 text-fg dark:bg-ink/60">
+            {minifiedOutput}
+          </pre>
+        )}
       </div>
-    </section>
+    </Card>
   );
 };

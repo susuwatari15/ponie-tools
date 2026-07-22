@@ -9,15 +9,20 @@ type NavLinkProps = {
 	href: string;
 	end?: boolean;
 	children: ReactNode;
-	className?: string;
+	onNavigate?: () => void;
 };
 
-export const NavLink: FC<NavLinkProps> = ({ href, end, children }) => {
+export const NavLink: FC<NavLinkProps> = ({ href, end, children, onNavigate }) => {
 	const pathname = usePathname();
 	const isActive = end ? pathname === href : pathname.startsWith(href);
 
 	return (
-		<Link href={href} className={navClassName({ isActive })}>
+		<Link
+			href={href}
+			aria-current={isActive ? "page" : undefined}
+			onClick={onNavigate}
+			className={navClassName({ isActive })}
+		>
 			{children}
 		</Link>
 	);

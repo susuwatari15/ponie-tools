@@ -1,4 +1,5 @@
 import type { FC, ReactNode } from "react";
+import { CommandBarProvider } from "./CommandBar";
 import { Content } from "./Content";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
@@ -11,18 +12,15 @@ type AppShellProps = {
 export const AppShell: FC<AppShellProps> = ({ children }) => {
 	return (
 		<SidebarProvider>
-			<main className="min-h-screen text-slate-900 dark:text-slate-100">
-				<div className="mx-auto w-full overflow-hidden shadow-glow backdrop-blur dark:shadow-glow">
+			<CommandBarProvider>
+				<div className="flex min-h-screen flex-col text-fg">
 					<Header />
-					<div className="lg:flex">
+					<div className="flex flex-1">
 						<Sidebar />
-						<Content>
-							{children}
-						</Content>
+						<Content>{children}</Content>
 					</div>
 				</div>
-			</main>
+			</CommandBarProvider>
 		</SidebarProvider>
 	);
 };
-

@@ -1,5 +1,10 @@
+"use client";
+
 import { Download, ExternalLink, Users } from "lucide-react";
 import { type FC, useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
+import { Spinner } from "@/components/ui/Spinner";
 import type { SwaggerProfile } from "@/lib/swaggerProfilesStorage";
 import { ProfileManagerModal } from "./ProfileManagerModal";
 import { SaveSnapshotForm } from "./SaveSnapshotForm";
@@ -67,93 +72,96 @@ export const SwaggerUrlFetchForm: FC<SwaggerUrlFetchFormProps> = ({
   const hasUrl = Boolean(profileUrl.trim());
 
   return (
-    <div className="rounded-md border border-slate-300 bg-slate-100/80 p-2 dark:border-slate-700 dark:bg-slate-900/60">
-      <div className="grid grid-cols-1 gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <label className="sr-only" htmlFor="swagger-profile-select">
-              Credential profile
-            </label>
-            <div className="relative min-w-0 flex-1">
-              {selectedProfile ? (
+    <div className="rounded-lg border border-line bg-raised/50 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <label className="sr-only" htmlFor="swagger-profile-select">
+            Credential profile
+          </label>
+          <Select
+            id="swagger-profile-select"
+            value={selectedProfile?.id ?? ""}
+            onChange={(event) => onSelectProfile(event.target.value || null)}
+            adornment={
+              selectedProfile ? (
                 <span
-                  className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full ring-1 ring-black/10"
+                  className="h-3 w-3 rounded-full ring-1 ring-black/10"
                   style={{ backgroundColor: selectedProfile.color }}
                   aria-hidden
                 />
-              ) : null}
-              <select
-                id="swagger-profile-select"
-                value={selectedProfile?.id ?? ""}
-                onChange={(event) =>
-                  onSelectProfile(event.target.value || null)
-                }
-                className={`w-full rounded-md border border-slate-300 bg-white py-2 pr-3 text-xs text-slate-900 outline-none transition focus:border-accent dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-100 ${
-                  selectedProfile ? "pl-7" : "pl-3"
-                }`}
-              >
-                <option value="">Select a profile…</option>
-                {profiles.map((profile) => (
-                  <option key={profile.id} value={profile.id}>
-                    {profile.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsManagerOpen(true)}
-              className="inline-flex shrink-0 items-center gap-2 rounded-md border border-slate-400 bg-slate-200 px-3 py-2 text-xs text-slate-800 transition hover:border-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400"
-            >
-              <Users className="h-4 w-4" />
-              Profiles
-            </button>
-          </div>
-        </div>
-
-        {extensionAvailable ? (
-          <p className="px-1 text-[11px] text-emerald-600 dark:text-emerald-400">
-            Browser extension: connected — fetching uses your browser session.
-          </p>
-        ) : null}
-
-        {selectedProfile ? (
-          hasUrl ? (
-            <a href={profileUrl} className="truncate px-1 text-[11px] text-slate-500 dark:text-slate-400" target="_blank" rel="noopener noreferrer">
-              {profileUrl}
-            </a>
-          ) : (
-            <p className="truncate px-1 text-[11px] text-slate-500 dark:text-slate-400">
-              This profile has no Swagger URL set.
-            </p>
-          )
-        ) : null}
-
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={onFetchFromUrl}
-            disabled={isFetchingUrl || !hasUrl}
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-400 bg-slate-200 px-3 py-2 text-xs text-slate-800 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400"
+              ) : undefined
+            }
           >
-            <Download className="h-4 w-4" />
-            {isFetchingUrl ? "Loading..." : "Load from URL"}
-          </button>
+            <option value="">Select a profile…</option>
+            {profiles.map((profile) => (
+              <option key={profile.id} value={profile.id}>
+                {profile.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <Button
+          onClick={() => setIsManagerOpen(true)}
+          leftIcon={<Users className="h-4 w-4" />}
+        >
+          Profiles
+        </Button>
+      </div>
+
+      {extensionAvailable ? (
+        <p className="mt-2 text-[11px] text-emerald-600 dark:text-emerald-400">
+          Browser extension connected — fetching uses your browser session.
+        </p>
+      ) : null}
+
+      {selectedProfile ? (
+        hasUrl ? (
           <a
-            href={buildAuthUrl(profileUrl, username, password)}
+            href={profileUrl}
+            className="mt-2 block truncate text-[11px] text-muted hover:text-fg"
             target="_blank"
             rel="noopener noreferrer"
-            className={`inline-flex items-center justify-center gap-2 rounded-md border border-slate-400 bg-slate-200 px-3 py-2 text-xs text-slate-800 transition hover:border-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400 ${!hasUrl ? "pointer-events-none opacity-50" : ""}`}
-            aria-disabled={!hasUrl}
           >
-            <ExternalLink className="h-4 w-4" />
-            Open in browser
+            {profileUrl}
           </a>
-        </div>
+        ) : (
+          <p className="mt-2 truncate text-[11px] text-muted">
+            This profile has no Swagger URL set.
+          </p>
+        )
+      ) : null}
+
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <Button
+          variant="primary"
+          onClick={onFetchFromUrl}
+          disabled={isFetchingUrl || !hasUrl}
+          leftIcon={
+            isFetchingUrl ? (
+              <Spinner className="text-white" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )
+          }
+        >
+          {isFetchingUrl ? "Loading…" : "Load from URL"}
+        </Button>
+        <a
+          href={buildAuthUrl(profileUrl, username, password)}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-disabled={!hasUrl}
+          className={`inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3.5 py-2 text-sm font-medium text-fg transition hover:border-muted/50 hover:bg-raised ${
+            !hasUrl ? "pointer-events-none opacity-45" : ""
+          }`}
+        >
+          <ExternalLink className="h-4 w-4" />
+          Open in browser
+        </a>
       </div>
 
       {urlFetchError ? (
-        <p className="mt-2 text-xs text-rose-600 dark:text-rose-300">
+        <p className="mt-2 rounded-md border border-del/40 bg-del/10 px-2 py-1.5 text-xs text-del">
           {urlFetchError}
         </p>
       ) : null}

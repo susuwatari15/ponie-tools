@@ -1,8 +1,8 @@
 const navBaseClass =
-	"inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition text-slate-600 hover:bg-slate-200/80 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200";
+	"group inline-flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 text-muted hover:bg-raised hover:text-fg";
 
 const activeNavClass =
-	"bg-accent/15 text-sky-700 ring-1 ring-accent/40 dark:bg-accent/20 dark:text-accent dark:ring-accent/50";
+	"bg-accent/12 text-accent ring-1 ring-accent/30 hover:bg-accent/15 hover:text-accent";
 
 export function navClassName({ isActive }: { isActive: boolean }) {
 	return `${navBaseClass} ${isActive ? activeNavClass : ""}`;

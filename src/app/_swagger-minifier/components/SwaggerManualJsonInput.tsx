@@ -1,5 +1,10 @@
+"use client";
+
 import { ClipboardPaste, Upload } from "lucide-react";
 import type { ChangeEvent, FC } from "react";
+import { Button } from "@/components/ui/Button";
+import { Textarea } from "@/components/ui/Textarea";
+import { useToast } from "@/components/ui/ToastProvider";
 import { SaveSnapshotForm } from "./SaveSnapshotForm";
 
 type SwaggerManualJsonInputProps = {
@@ -15,27 +20,29 @@ export const SwaggerManualJsonInput: FC<SwaggerManualJsonInputProps> = ({
   onFileUpload,
   onSnapshotSaved,
 }) => {
+  const { toast } = useToast();
+
   const handlePasteFromClipboard = async () => {
     try {
       const text = await navigator.clipboard.readText();
       onRawJsonChange(text);
+      toast("Pasted from clipboard", "success");
     } catch {
-      // Clipboard denied or unavailable; user can paste into the textarea manually.
+      toast("Clipboard unavailable — paste into the box instead", "error");
     }
   };
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 mb-2">
-        <button
-          type="button"
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
           onClick={handlePasteFromClipboard}
-          className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-400 bg-slate-100 px-3 py-1.5 text-xs text-slate-800 transition hover:border-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400"
+          leftIcon={<ClipboardPaste className="h-4 w-4" />}
         >
-          <ClipboardPaste className="h-4 w-4" />
           Paste
-        </button>
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-400 bg-slate-100 px-3 py-1.5 text-xs text-slate-800 transition hover:border-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-slate-400">
+        </Button>
+        <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-fg transition hover:border-muted/50 hover:bg-raised">
           <Upload className="h-4 w-4" />
           Upload JSON
           <input
@@ -47,11 +54,11 @@ export const SwaggerManualJsonInput: FC<SwaggerManualJsonInputProps> = ({
         </label>
       </div>
 
-      <textarea
+      <Textarea
         value={rawJson}
         onChange={(event) => onRawJsonChange(event.target.value)}
-        placeholder="Paste swagger.json here..."
-        className="h-36 w-full resize-none rounded-md border border-slate-300 bg-white p-3 font-mono text-xs text-slate-800 outline-none ring-0 transition focus:border-accent dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-200"
+        placeholder="Paste swagger.json here…"
+        className="h-40 resize-none"
       />
 
       <SaveSnapshotForm rawJson={rawJson} onSaved={onSnapshotSaved} />

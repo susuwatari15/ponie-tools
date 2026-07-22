@@ -1,5 +1,6 @@
+import { ShieldCheck } from "lucide-react";
 import type { FC } from "react";
-import { mutedText, panelClasses } from "../styles";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { usePermissionDiff } from "../_hooks/usePermissionDiff";
 import { AllPermissionsSection } from "./AllPermissionsSection";
 import { PermissionDiffInputPanel } from "./PermissionDiffInputPanel";
@@ -22,7 +23,6 @@ export const PermissionDiffViewer: FC = () => {
 		allGroupView,
 		setAllGroupView,
 		openSections,
-		copyStatusMap,
 		toggleSection,
 		handleCompare,
 		handleCopyJson,
@@ -31,7 +31,7 @@ export const PermissionDiffViewer: FC = () => {
 	} = usePermissionDiff();
 
 	return (
-		<div className="grid grid-cols-1 gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+		<div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
 			<PermissionDiffInputPanel
 				group1RawJson={group1RawJson}
 				group2RawJson={group2RawJson}
@@ -42,7 +42,7 @@ export const PermissionDiffViewer: FC = () => {
 				onLoadSample={loadSample}
 			/>
 
-			<section className="space-y-4">
+			<section className="min-w-0 space-y-4">
 				{result && summary ? (
 					<>
 						<PermissionDiffSummaryToolbar
@@ -71,7 +71,6 @@ export const PermissionDiffViewer: FC = () => {
 							onToggle={toggleSection}
 							onCopyJson={handleCopyJson}
 							onCopyText={handleCopyText}
-							copyStatus={copyStatusMap.only1}
 						/>
 						<PermissionListSection
 							id="only2"
@@ -84,7 +83,6 @@ export const PermissionDiffViewer: FC = () => {
 							onToggle={toggleSection}
 							onCopyJson={handleCopyJson}
 							onCopyText={handleCopyText}
-							copyStatus={copyStatusMap.only2}
 						/>
 						<PermissionListSection
 							id="common"
@@ -97,7 +95,6 @@ export const PermissionDiffViewer: FC = () => {
 							onToggle={toggleSection}
 							onCopyJson={handleCopyJson}
 							onCopyText={handleCopyText}
-							copyStatus={copyStatusMap.common}
 						/>
 
 						<AllPermissionsSection
@@ -114,15 +111,14 @@ export const PermissionDiffViewer: FC = () => {
 							onGroupChange={setAllGroupView}
 							onCopyJson={handleCopyJson}
 							onCopyText={handleCopyText}
-							copyStatus={copyStatusMap.all}
 						/>
 					</>
 				) : (
-					<div className={`rounded-xl border p-6 text-sm ${panelClasses}`}>
-						<p className={mutedText}>
-							Paste JSON input and click Compare to view intersection and differences.
-						</p>
-					</div>
+					<EmptyState
+						icon={ShieldCheck}
+						title="No comparison yet"
+						description="Paste two permission sets on the left and click Compare to see the intersection and differences."
+					/>
 				)}
 			</section>
 		</div>

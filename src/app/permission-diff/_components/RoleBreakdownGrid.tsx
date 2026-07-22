@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { mutedText, panelClasses } from "../styles";
+import { Card } from "@/components/ui/Card";
 import type { RoleBreakdown } from "../types";
 
 type RoleBreakdownGridProps = {
@@ -9,40 +9,28 @@ type RoleBreakdownGridProps = {
 	group2Rows: RoleBreakdown[];
 };
 
+const Column: FC<{ label: string; rows: RoleBreakdown[] }> = ({ label, rows }) => (
+	<Card>
+		<h4 className="text-sm font-semibold text-fg">{label} role breakdown</h4>
+		<ul className="mt-2 space-y-1 text-sm">
+			{rows.map((row) => (
+				<li key={row.name} className="flex items-center justify-between gap-2">
+					<span className="min-w-0 truncate text-fg/90">{row.name}</span>
+					<span className="font-mono text-xs text-muted">{row.count}</span>
+				</li>
+			))}
+		</ul>
+	</Card>
+);
+
 export const RoleBreakdownGrid: FC<RoleBreakdownGridProps> = ({
 	group1Label,
 	group2Label,
 	group1Rows,
 	group2Rows,
-}) => {
-	return (
-		<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-			<div className={`rounded-xl border p-3 ${panelClasses}`}>
-				<h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-					{group1Label} role breakdown
-				</h4>
-				<ul className="mt-2 space-y-1 text-sm">
-					{group1Rows.map((row) => (
-						<li key={row.name} className="flex items-center justify-between gap-2">
-							<span className="truncate">{row.name}</span>
-							<span className={`text-xs ${mutedText}`}>{row.count}</span>
-						</li>
-					))}
-				</ul>
-			</div>
-			<div className={`rounded-xl border p-3 ${panelClasses}`}>
-				<h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-					{group2Label} role breakdown
-				</h4>
-				<ul className="mt-2 space-y-1 text-sm">
-					{group2Rows.map((row) => (
-						<li key={row.name} className="flex items-center justify-between gap-2">
-							<span className="truncate">{row.name}</span>
-							<span className={`text-xs ${mutedText}`}>{row.count}</span>
-						</li>
-					))}
-				</ul>
-			</div>
-		</div>
-	);
-};
+}) => (
+	<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+		<Column label={group1Label} rows={group1Rows} />
+		<Column label={group2Label} rows={group2Rows} />
+	</div>
+);
