@@ -16,6 +16,8 @@ import {
   compareOpenApiRawJson,
   type OpenApiCompareResult,
 } from "@/lib/openApiCompare";
+import { parseOpenApiInput } from "@/lib/openApiInput";
+import { buildEndpointIndex, minifySwagger } from "@/lib/swaggerMinifier";
 import { SwaggerCompareResults } from "./SwaggerCompareResults";
 import { SwaggerSnapshotList } from "./SwaggerSnapshotList";
 
@@ -111,6 +113,26 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
     try {
       await navigator.clipboard.writeText(text);
       toast(`New & changed (${fmt}) copied`, "success");
+    } catch {
+      toast("Couldn't access the clipboard", "error");
+    }
+  };
+
+  const handleCopyMinified = async () => {
+    if (!snapBForCopy?.rawJson) return;
+    const parsed = parseOpenApiInput(snapBForCopy.rawJson.trim());
+    if (parsed.error || !parsed.doc) {
+      toast("Invalid OpenAPI JSON", "error");
+      return;
+    }
+    const ids = buildEndpointIndex(parsed.doc).map((e) => e.id);
+    if (ids.length === 0) {
+      toast("Nothing to copy", "error");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(minifySwagger(ids, parsed.doc));
+      toast("Minified JSON copied", "success");
     } catch {
       toast("Couldn't access the clipboard", "error");
     }
@@ -222,6 +244,14 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
               leftIcon={<Copy className="h-3.5 w-3.5" />}
             >
               Short
+            </Button>
+            <Button
+              disabled={!snapBForCopy?.rawJson}
+              onClick={() => void handleCopyMinified()}
+              title="Copy the full minified JSON of snapshot B"
+              leftIcon={<Copy className="h-3.5 w-3.5" />}
+            >
+              Copy minified JSON
             </Button>
           </div>
           {notEnough ? (

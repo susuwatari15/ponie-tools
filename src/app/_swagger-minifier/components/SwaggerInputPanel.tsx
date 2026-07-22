@@ -88,7 +88,7 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 	selectedIds,
 	onToggleSelection,
 }) => (
-	<Card flush className="flex min-h-[560px] flex-col overflow-hidden lg:min-h-0">
+	<Card flush className="flex min-h-[560px] flex-col overflow-auto max-h-full lg:min-h-0">
 		<div className="border-b border-line p-4">
 			<p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted">
 				// input

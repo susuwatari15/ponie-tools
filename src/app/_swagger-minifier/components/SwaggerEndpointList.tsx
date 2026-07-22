@@ -15,7 +15,7 @@ export const SwaggerEndpointList: FC<SwaggerEndpointListProps> = ({
 	selectedIds,
 	onToggleSelection,
 }) => (
-	<div className="scroll-ide min-h-0 flex-1 overflow-y-auto p-2">
+	<div className="scroll-ide min-h-0 p-2">
 		{endpoints.length === 0 ? (
 			<div className="m-2 flex flex-col items-center gap-2 rounded-lg border border-dashed border-line px-4 py-8 text-center text-sm text-muted">
 				<SearchX className="h-5 w-5" aria-hidden />
