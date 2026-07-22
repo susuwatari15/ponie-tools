@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Braces, GitCompare, LayoutDashboard, Ruler, ShieldCheck } from "lucide-react";
+import { Braces, CalendarClock, GitCompare, LayoutDashboard, Ruler, ShieldCheck } from "lucide-react";
 
 export type NavItem = {
 	href: string;
@@ -42,6 +42,12 @@ export const TOOL_NAV_ITEMS: NavItem[] = [
 		label: "PX ↔ REM",
 		description: "Convert pixels and rem units",
 		icon: Ruler,
+	},
+	{
+		href: "/epoch-converter",
+		label: "Epoch Converter",
+		description: "Convert Unix timestamps and dates",
+		icon: CalendarClock,
 	},
 ];
 
