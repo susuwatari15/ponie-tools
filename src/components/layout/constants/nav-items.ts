@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Braces, CalendarClock, GitCompare, LayoutDashboard, Ruler, ShieldCheck } from "lucide-react";
+import { Braces, CalendarClock, FileJson, GitCompare, LayoutDashboard, Ruler, ShieldCheck } from "lucide-react";
 
 export type NavItem = {
 	href: string;
@@ -48,6 +48,12 @@ export const TOOL_NAV_ITEMS: NavItem[] = [
 		label: "Epoch Converter",
 		description: "Convert Unix timestamps and dates",
 		icon: CalendarClock,
+	},
+	{
+		href: "/json-formatter",
+		label: "JSON Formatter",
+		description: "Beautify, minify and validate JSON",
+		icon: FileJson,
 	},
 ];
 
