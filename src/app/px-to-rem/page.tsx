@@ -9,7 +9,7 @@ const PxRemPage: FC = () => {
 	const m = usePxRem();
 
 	return (
-		<div className="mx-auto w-full max-w-4xl space-y-5 p-4 sm:p-6">
+		<div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 sm:p-6">
 			<PageHeader
 				eyebrow="// css · units"
 				title="PX ↔ REM Converter"
