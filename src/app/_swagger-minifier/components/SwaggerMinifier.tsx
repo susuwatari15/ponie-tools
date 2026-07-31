@@ -40,6 +40,7 @@ const SwaggerMinifier: FC<SwaggerMinifierProps> = ({
       onEditProfile={m.editProfile}
       onDeleteProfile={m.deleteProfile}
       parsed={m.parsed}
+      diagnostics={m.diagnostics}
       allEndpoints={m.allEndpoints}
       searchQuery={m.searchQuery}
       onSearchQueryChange={m.setSearchQuery}

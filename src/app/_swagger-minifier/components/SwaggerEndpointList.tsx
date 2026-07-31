@@ -1,19 +1,22 @@
-import { SearchX } from "lucide-react";
+import { AlertTriangle, SearchX } from "lucide-react";
 import type { FC } from "react";
 import { cn } from "@/components/ui/cn";
 import { MethodBadge } from "@/components/ui/Badge";
+import type { OpenApiDiagnostic } from "@/lib/openApiDiagnostics";
 import type { EndpointItem } from "@/types/openapi";
 
 type SwaggerEndpointListProps = {
 	endpoints: EndpointItem[];
 	selectedIds: Set<string>;
 	onToggleSelection: (id: string) => void;
+	diagnosticsByEndpoint?: Map<string, OpenApiDiagnostic[]>;
 };
 
 export const SwaggerEndpointList: FC<SwaggerEndpointListProps> = ({
 	endpoints,
 	selectedIds,
 	onToggleSelection,
+	diagnosticsByEndpoint,
 }) => (
 	<div className="scroll-ide min-h-0 p-2">
 		{endpoints.length === 0 ? (
@@ -25,6 +28,8 @@ export const SwaggerEndpointList: FC<SwaggerEndpointListProps> = ({
 			<ul className="space-y-1.5">
 				{endpoints.map((endpoint) => {
 					const checked = selectedIds.has(endpoint.id);
+					const issues = diagnosticsByEndpoint?.get(endpoint.id);
+					const hasError = issues?.some((i) => i.severity === "error");
 					return (
 						<li key={endpoint.id}>
 							{/* Whole row is a real <label> wrapping the checkbox — no
@@ -49,6 +54,19 @@ export const SwaggerEndpointList: FC<SwaggerEndpointListProps> = ({
 										<span className="min-w-0 break-all font-mono text-xs text-fg">
 											{endpoint.path}
 										</span>
+										{issues && issues.length > 0 ? (
+											<span
+												title={issues.map((issue) => issue.title).join("\n")}
+												aria-label={`${issues.length} spec issue${issues.length > 1 ? "s" : ""}`}
+											>
+												<AlertTriangle
+													className={cn(
+														"h-3.5 w-3.5 shrink-0",
+														hasError ? "text-del" : "text-put",
+													)}
+												/>
+											</span>
+										) : null}
 									</span>
 									{endpoint.summary ? (
 										<span className="mt-1 block text-xs text-muted">

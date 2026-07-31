@@ -1,11 +1,12 @@
 "use client";
 
 import { type FC, useState } from "react";
-import { CheckCheck, Copy, GitCompare } from "lucide-react";
+import { AlertTriangle, CheckCheck, Copy, GitCompare } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { SwaggerDiagnosticsPanel } from "@/components/swagger/SwaggerDiagnosticsPanel";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { MinifiedOperation } from "@/types/openapi";
 import type { OpenApiCompareResult } from "@/lib/openApiCompare";
@@ -80,7 +81,8 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 		);
 	}
 
-	const { labelA, labelB, added, removed, changed } = result;
+	const { labelA, labelB, added, removed, changed, diagnosticsA, diagnosticsB } =
+		result;
 
 	const allSelectableIds = [
 		...added.map((i) => i.id),
@@ -116,8 +118,20 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 
 	const noDiff = added.length === 0 && removed.length === 0 && changed.length === 0;
 
+	// An endpoint that shares its definition with another route isn't reliably
+	// described by its own diff — flag it rather than let it read as a real change.
+	const hasSharedDefinition = (id: string) =>
+		[diagnosticsA, diagnosticsB].some((report) =>
+			report.byEndpoint
+				.get(id)
+				?.some((issue) => issue.code === "duplicate-operation-body"),
+		);
+
 	return (
 		<div className="space-y-4">
+			<SwaggerDiagnosticsPanel report={diagnosticsA} label={labelA} />
+			<SwaggerDiagnosticsPanel report={diagnosticsB} label={labelB} />
+
 			{selectableCount > 0 && rawJsonB ? (
 				<Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<div className="flex flex-wrap items-center gap-3">
@@ -225,6 +239,12 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 										className="h-4 w-4 shrink-0 rounded border-line text-accent focus:ring-accent"
 									/>
 									<span>{row.id}</span>
+									{hasSharedDefinition(row.id) ? (
+										<span className="inline-flex items-center gap-1 rounded border border-del/40 bg-del/10 px-1.5 py-0.5 font-sans text-[10px] font-medium text-del">
+											<AlertTriangle className="h-3 w-3" aria-hidden />
+											spec issue — diff may be unreliable
+										</span>
+									) : null}
 								</label>
 								<div className="p-3">
 									<TextDiffUnified

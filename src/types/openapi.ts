@@ -74,6 +74,10 @@ export interface OperationObject {
   parameters?: ParameterObject[];
   requestBody?: RequestBodyObject;
   responses?: Record<string, ResponseObject>;
+  // Swagger 2.0 fields — unused by the minifier, read by the diagnostics pass.
+  produces?: string[];
+  consumes?: string[];
+  security?: Array<Record<string, string[]>>;
 }
 
 export interface PathItemObject {

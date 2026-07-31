@@ -13,6 +13,10 @@ import {
 	minifySwagger,
 } from "@/lib/swaggerMinifier";
 import { filterEndpointsByQuery } from "@/lib/endpointFilter";
+import {
+	collectOpenApiDiagnostics,
+	EMPTY_DIAGNOSTICS_REPORT,
+} from "@/lib/openApiDiagnostics";
 import { parseOpenApiInput } from "@/lib/openApiInput";
 import { readStoredRawJson } from "@/lib/swaggerRawJsonStorage";
 import { formatSwaggerEndpointsShort } from "@/lib/swaggerShortFormat";
@@ -145,6 +149,14 @@ export function useSwaggerMinifier(initialJson: string) {
 		if (!parsed.doc) return [];
 		return buildEndpointIndex(parsed.doc);
 	}, [parsed.doc]);
+
+	const diagnostics = useMemo(
+		() =>
+			parsed.doc
+				? collectOpenApiDiagnostics(parsed.doc, deferredRawJson)
+				: EMPTY_DIAGNOSTICS_REPORT,
+		[parsed.doc, deferredRawJson],
+	);
 
 	const filteredEndpoints = useMemo(
 		() => filterEndpointsByQuery(allEndpoints, deferredSearchQuery, deferredSelectedMethods),
@@ -325,6 +337,7 @@ export function useSwaggerMinifier(initialJson: string) {
 		editProfile,
 		deleteProfile,
 		parsed,
+		diagnostics,
 		allEndpoints,
 		filteredEndpoints,
 		minifiedOutput,

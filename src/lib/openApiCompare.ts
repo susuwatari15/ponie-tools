@@ -4,6 +4,10 @@ import {
 	getMinifiedOperationForEndpoint,
 	minifySwagger,
 } from "./swaggerMinifier";
+import {
+	collectOpenApiDiagnostics,
+	type OpenApiDiagnosticsReport,
+} from "./openApiDiagnostics";
 import { parseOpenApiInput } from "./openApiInput";
 import { formatSwaggerEndpointsShort, type SwaggerCopyFormat } from "./swaggerShortFormat";
 
@@ -28,6 +32,8 @@ export type OpenApiCompareResult =
 			added: EndpointPresence[];
 			removed: EndpointPresence[];
 			changed: ChangedEndpointDiff[];
+			diagnosticsA: OpenApiDiagnosticsReport;
+			diagnosticsB: OpenApiDiagnosticsReport;
 	  }
 	| {
 			ok: false;
@@ -113,6 +119,8 @@ export function compareOpenApiRawJson(
 		added,
 		removed,
 		changed,
+		diagnosticsA: collectOpenApiDiagnostics(parsedA.doc, rawA),
+		diagnosticsB: collectOpenApiDiagnostics(parsedB.doc, rawB),
 	};
 }
 
