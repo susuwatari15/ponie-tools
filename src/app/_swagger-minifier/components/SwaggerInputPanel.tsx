@@ -2,7 +2,9 @@ import type { ChangeEvent, FC } from "react";
 import { GitCompare } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { SwaggerDiagnosticsPanel } from "@/components/swagger/SwaggerDiagnosticsPanel";
 import type { EndpointItem, HttpMethod } from "@/types/openapi";
+import type { OpenApiDiagnosticsReport } from "@/lib/openApiDiagnostics";
 import type { ParsedOpenApiInput } from "@/lib/openApiInput";
 import type { SwaggerProfile } from "@/lib/swaggerProfilesStorage";
 import { SwaggerEndpointList } from "./SwaggerEndpointList";
@@ -44,6 +46,7 @@ type SwaggerInputPanelProps = {
 	) => Promise<ProfileWriteResult>;
 	onDeleteProfile: (id: string) => void;
 	parsed: ParsedOpenApiInput;
+	diagnostics: OpenApiDiagnosticsReport;
 	allEndpoints: EndpointItem[];
 	searchQuery: string;
 	onSearchQueryChange: (value: string) => void;
@@ -76,6 +79,7 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 	onEditProfile,
 	onDeleteProfile,
 	parsed,
+	diagnostics,
 	allEndpoints,
 	searchQuery,
 	onSearchQueryChange,
@@ -123,7 +127,10 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 				error={parsed.error}
 				endpointCount={allEndpoints.length}
 				hasDoc={Boolean(parsed.doc)}
+				diagnostics={diagnostics}
 			/>
+
+			<SwaggerDiagnosticsPanel report={diagnostics} className="mt-3" />
 
 			{onNavigateToCompareLatest ? (
 				<div className="mt-3">
@@ -155,6 +162,7 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 			endpoints={filteredEndpoints}
 			selectedIds={selectedIds}
 			onToggleSelection={onToggleSelection}
+			diagnosticsByEndpoint={diagnostics.byEndpoint}
 		/>
 	</Card>
 );

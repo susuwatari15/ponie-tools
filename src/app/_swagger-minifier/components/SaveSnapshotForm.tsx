@@ -108,8 +108,7 @@ export const SaveSnapshotForm: FC<SaveSnapshotFormProps> = ({
             title="Set name to current date and time"
             className="inline-flex shrink-0 items-center gap-1 border-l border-line bg-raised px-2.5 text-[10px] font-medium text-muted transition hover:text-fg"
           >
-            <RefreshCw className="h-3.5 w-3.5" aria-hidden />
-            Renew
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden />            
           </button>
         </div>
         <Button type="submit" leftIcon={<Save className="h-4 w-4" />}>
