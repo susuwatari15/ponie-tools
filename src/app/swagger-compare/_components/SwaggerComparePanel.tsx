@@ -211,105 +211,110 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
       </div>
 
       {/* Compare */}
-      <div className="flex min-h-0 min-w-0 flex-col gap-5">
-        <Card>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
-            // compare
-          </p>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="flex flex-col gap-1.5">
-              <span className="flex items-center gap-1.5 text-xs font-medium text-muted">
-                <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-rose-500/15 font-mono text-[10px] font-semibold text-rose-500">
-                  A
-                </span>
-                Baseline
-              </span>
+      <div className="flex min-h-0 min-w-0 flex-col gap-3 sm:gap-5">
+        <Card className="p-3 sm:p-4">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="hidden shrink-0 font-mono text-[10px] uppercase tracking-widest text-muted xl:block">
+              // compare
+            </p>
+            <div className="grid min-w-[15rem] flex-1 grid-cols-2 gap-2">
               <Select
+                aria-label="Baseline snapshot (A)"
+                title="Baseline (A)"
+                className="py-1.5 text-xs"
+                adornment={
+                  <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-rose-500/15 font-mono text-[10px] font-semibold text-rose-500">
+                    A
+                  </span>
+                }
                 value={idA}
                 onChange={(e) => selectAsA(e.target.value)}
                 disabled={notEnough}
               >
-                <option value="">Select snapshot…</option>
+                <option value="">Baseline…</option>
                 {snapshots.map((s) => (
                   <option key={s.id} value={s.id} disabled={s.id === idB}>
                     {snapshotLabel(s)}
                   </option>
                 ))}
               </Select>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="flex items-center gap-1.5 text-xs font-medium text-muted">
-                <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-emerald-500/15 font-mono text-[10px] font-semibold text-emerald-500">
-                  B
-                </span>
-                Compare against
-              </span>
               <Select
+                aria-label="Snapshot to compare against (B)"
+                title="Compare against (B)"
+                className="py-1.5 text-xs"
+                adornment={
+                  <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-emerald-500/15 font-mono text-[10px] font-semibold text-emerald-500">
+                    B
+                  </span>
+                }
                 value={idB}
                 onChange={(e) => selectAsB(e.target.value)}
                 disabled={notEnough}
               >
-                <option value="">Select snapshot…</option>
+                <option value="">Compare against…</option>
                 {snapshots.map((s) => (
                   <option key={s.id} value={s.id} disabled={s.id === idA}>
                     {snapshotLabel(s)}
                   </option>
                 ))}
               </Select>
-            </label>
-          </div>
+            </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Button
-              variant="primary"
-              onClick={handleCompare}
-              disabled={notEnough}
-              leftIcon={<GitCompare className="h-4 w-4" />}
-            >
-              Compare
-            </Button>
-            <Button
-              disabled={!canCopySelected}
-              onClick={() => void handleCopySelected("full")}
-              title="Copy the selected endpoints from B as minified JSON"
-              leftIcon={<Copy className="h-3.5 w-3.5" />}
-            >
-              Copy selected (JSON)
-            </Button>
-            <Button
-              disabled={!canCopySelected}
-              onClick={() => void handleCopySelected("short")}
-              title="Copy the selected endpoints from B as a short method + path list"
-              leftIcon={<Copy className="h-3.5 w-3.5" />}
-            >
-              Copy selected (short)
-            </Button>
-            {selectableIds.length > 0 ? (
-              <div className="ml-auto flex items-center gap-2 text-xs text-muted">
-                <span>
-                  <span className="font-mono text-accent">{selectedCount}</span> of{" "}
-                  {selectableIds.length} selected
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={handleCompare}
+                disabled={notEnough}
+                leftIcon={<GitCompare className="h-3.5 w-3.5" />}
+              >
+                Compare
+              </Button>
+              <Button
+                size="sm"
+                disabled={!canCopySelected}
+                onClick={() => void handleCopySelected("full")}
+                title="Copy the selected endpoints from B as minified JSON"
+                leftIcon={<Copy className="h-3.5 w-3.5" />}
+              >
+                JSON
+              </Button>
+              <Button
+                size="sm"
+                disabled={!canCopySelected}
+                onClick={() => void handleCopySelected("short")}
+                title="Copy the selected endpoints from B as a short method + path list"
+                leftIcon={<Copy className="h-3.5 w-3.5" />}
+              >
+                Short
+              </Button>
+              {selectableIds.length > 0 ? (
+                <span className="flex items-center gap-2 text-xs text-muted">
+                  <span className="whitespace-nowrap">
+                    <span className="font-mono text-accent">{selectedCount}</span>/
+                    {selectableIds.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setEndpointsSelected(selectableIds, true)}
+                    className="font-medium text-accent hover:underline"
+                  >
+                    All
+                  </button>
+                  <span className="text-line">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedIds(new Set())}
+                    className="font-medium text-accent hover:underline"
+                  >
+                    Clear
+                  </button>
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setEndpointsSelected(selectableIds, true)}
-                  className="font-medium text-accent hover:underline"
-                >
-                  Select all
-                </button>
-                <span className="text-line">|</span>
-                <button
-                  type="button"
-                  onClick={() => setSelectedIds(new Set())}
-                  className="font-medium text-accent hover:underline"
-                >
-                  Clear
-                </button>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
           {selectableIds.length > 0 ? (
-            <p className="mt-3 text-xs text-muted">
+            <p className="mt-2 hidden text-xs text-muted lg:block">
               Tick endpoints in the path tree or the results below, then copy them.
               Endpoints only in{" "}
               <span className="font-mono text-rose-500">A</span> can&apos;t be copied
@@ -317,7 +322,7 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
             </p>
           ) : null}
           {notEnough ? (
-            <p className="mt-3 text-xs text-muted">
+            <p className="mt-2 text-xs text-muted">
               Save at least two snapshots in the Minifier to compare.
             </p>
           ) : null}
