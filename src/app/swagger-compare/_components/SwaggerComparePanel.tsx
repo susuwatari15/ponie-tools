@@ -19,6 +19,8 @@ import {
 import { parseOpenApiInput } from "@/lib/openApiInput";
 import { buildEndpointIndex, minifySwagger } from "@/lib/swaggerMinifier";
 import { SwaggerCompareResults } from "./SwaggerCompareResults";
+import { SwaggerCompareTree } from "./SwaggerCompareTree";
+import { endpointDomId } from "../_lib/compareTree";
 import { SwaggerSnapshotList } from "./SwaggerSnapshotList";
 
 type SwaggerComparePanelProps = {
@@ -49,8 +51,20 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
   const [idB, setIdB] = useState(initialSnapshotIdB);
   const [compareResult, setCompareResult] =
     useState<OpenApiCompareResult | null>(null);
+  const [focusedEndpointId, setFocusedEndpointId] = useState<string | null>(null);
 
-  const resetResult = () => setCompareResult(null);
+  const resetResult = () => {
+    setCompareResult(null);
+    setFocusedEndpointId(null);
+  };
+
+  /** Jump to the result row for a path picked in the tree. */
+  const handleSelectEndpoint = (endpointId: string) => {
+    setFocusedEndpointId(endpointId);
+    document
+      .getElementById(endpointDomId(endpointId))
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 
   const handleLoad = async (snap: SavedSnapshot) => {
     await onLoadSnapshot(snap.rawJson);
@@ -89,6 +103,7 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
       setCompareResult({ ok: false, error: "Snapshot not found. Refresh the list." });
       return;
     }
+    setFocusedEndpointId(null);
     setCompareResult(
       compareOpenApiRawJson(snapA.rawJson, snapB.rawJson, {
         labelA: snapA.name,
@@ -139,6 +154,13 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
   };
 
   const notEnough = snapshots.length < 2;
+
+  const hasDiff =
+    compareResult?.ok === true &&
+    compareResult.added.length +
+      compareResult.removed.length +
+      compareResult.changed.length >
+      0;
 
   return (
     <div
@@ -265,11 +287,27 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
           <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted">
             // results
           </p>
-          <div className="scroll-ide min-h-0 flex-1 overflow-y-auto pr-1">
-            <SwaggerCompareResults
-              result={compareResult}
-              rawJsonB={snapBForCopy?.rawJson}
-            />
+          <div
+            className={cn(
+              "grid min-h-0 flex-1 grid-cols-1 gap-4",
+              hasDiff && "lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]",
+            )}
+          >
+            {hasDiff ? (
+              <SwaggerCompareTree
+                className="max-h-72 lg:max-h-none"
+                result={compareResult}
+                selectedEndpointId={focusedEndpointId}
+                onSelectEndpoint={handleSelectEndpoint}
+              />
+            ) : null}
+            <div className="scroll-ide min-h-0 flex-1 overflow-y-auto pr-1">
+              <SwaggerCompareResults
+                result={compareResult}
+                rawJsonB={snapBForCopy?.rawJson}
+                focusedEndpointId={focusedEndpointId}
+              />
+            </div>
           </div>
         </div>
       </div>

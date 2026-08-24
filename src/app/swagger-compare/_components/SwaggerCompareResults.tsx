@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import type { MinifiedOperation } from "@/types/openapi";
 import type { OpenApiCompareResult } from "@/lib/openApiCompare";
 import { TextDiffUnified } from "./TextDiffUnified";
+import { endpointDomId } from "../_lib/compareTree";
 import { parseOpenApiInput } from "@/lib/openApiInput";
 import { minifySwagger } from "@/lib/swaggerMinifier";
 import { formatSwaggerEndpointsShort } from "@/lib/swaggerShortFormat";
@@ -23,6 +24,8 @@ function formatOp(op: MinifiedOperation | undefined): string {
 type SwaggerCompareResultsProps = {
 	result: OpenApiCompareResult | null;
 	rawJsonB?: string;
+	/** Endpoint highlighted from the path tree. */
+	focusedEndpointId?: string | null;
 };
 
 const buildSelectedClipboardText = (
@@ -39,6 +42,7 @@ const buildSelectedClipboardText = (
 export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 	result,
 	rawJsonB,
+	focusedEndpointId,
 }) => {
 	const { toast } = useToast();
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -184,7 +188,11 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 						{removed.map((item) => (
 							<li
 								key={item.id}
-								className="rounded-lg border border-line bg-raised/40 px-3 py-2 font-mono text-xs text-fg"
+								id={endpointDomId(item.id)}
+								className={cn(
+									"scroll-mt-4 rounded-lg border border-line bg-raised/40 px-3 py-2 font-mono text-xs text-fg",
+									focusedEndpointId === item.id && focusRing,
+								)}
 							>
 								<span className="text-rose-600 dark:text-rose-300">{item.id}</span>
 								{item.summary ? (
@@ -200,8 +208,13 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 				<Section title={`Only in ${labelB}`} count={added.length} tone="get">
 					<ul className="space-y-1.5">
 						{added.map((item) => (
-							<li key={item.id}>
-								<label className="flex cursor-pointer items-center gap-3 rounded-lg border border-line bg-raised/40 px-3 py-2 font-mono text-xs text-fg">
+							<li key={item.id} id={endpointDomId(item.id)} className="scroll-mt-4">
+								<label
+									className={cn(
+										"flex cursor-pointer items-center gap-3 rounded-lg border border-line bg-raised/40 px-3 py-2 font-mono text-xs text-fg",
+										focusedEndpointId === item.id && focusRing,
+									)}
+								>
 									<input
 										type="checkbox"
 										checked={selectedIds.has(item.id)}
@@ -229,7 +242,11 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 						{changed.map((row) => (
 							<li
 								key={row.id}
-								className="overflow-hidden rounded-lg border border-line bg-surface"
+								id={endpointDomId(row.id)}
+								className={cn(
+									"scroll-mt-4 overflow-hidden rounded-lg border border-line bg-surface",
+									focusedEndpointId === row.id && focusRing,
+								)}
 							>
 								<label className="flex cursor-pointer items-center gap-3 border-b border-line px-3 py-2 font-mono text-xs text-amber-700 dark:text-amber-200">
 									<input
@@ -270,6 +287,8 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 		</div>
 	);
 };
+
+const focusRing = "ring-2 ring-accent/60 ring-offset-2 ring-offset-base";
 
 const toneClasses: Record<"get" | "del" | "put", string> = {
 	get: "text-emerald-600 dark:text-emerald-300",
