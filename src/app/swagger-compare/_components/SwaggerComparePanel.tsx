@@ -3,7 +3,7 @@
 import { format } from "date-fns";
 import { Copy, GitCompare } from "lucide-react";
 import type { FC } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
@@ -12,12 +12,10 @@ import { useToast } from "@/components/ui/ToastProvider";
 import type { SavedSnapshot } from "@/lib/swaggerSavedSnapshotsStorage";
 import { removeSnapshot } from "@/lib/swaggerSavedSnapshotsStorage";
 import {
-  buildNewChangedClipboardText,
+  buildEndpointsClipboardText,
   compareOpenApiRawJson,
   type OpenApiCompareResult,
 } from "@/lib/openApiCompare";
-import { parseOpenApiInput } from "@/lib/openApiInput";
-import { buildEndpointIndex, minifySwagger } from "@/lib/swaggerMinifier";
 import { SwaggerCompareResults } from "./SwaggerCompareResults";
 import { SwaggerCompareTree } from "./SwaggerCompareTree";
 import { endpointDomId } from "../_lib/compareTree";
@@ -52,10 +50,12 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
   const [compareResult, setCompareResult] =
     useState<OpenApiCompareResult | null>(null);
   const [focusedEndpointId, setFocusedEndpointId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const resetResult = () => {
     setCompareResult(null);
     setFocusedEndpointId(null);
+    setSelectedIds(new Set());
   };
 
   /** Jump to the result row for a path picked in the tree. */
@@ -104,50 +104,67 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
       return;
     }
     setFocusedEndpointId(null);
-    setCompareResult(
-      compareOpenApiRawJson(snapA.rawJson, snapB.rawJson, {
-        labelA: snapA.name,
-        labelB: snapB.name,
-      }),
+    const result = compareOpenApiRawJson(snapA.rawJson, snapB.rawJson, {
+      labelA: snapA.name,
+      labelB: snapB.name,
+    });
+    setCompareResult(result);
+    setSelectedIds(
+      result.ok
+        ? new Set([
+            ...result.added.map((i) => i.id),
+            ...result.changed.map((i) => i.id),
+          ])
+        : new Set(),
     );
   };
 
   const snapBForCopy = idB ? snapshots.find((s) => s.id === idB) : undefined;
-  const canCopyNewAndChanged =
-    compareResult?.ok === true &&
-    compareResult.added.length + compareResult.changed.length > 0 &&
-    Boolean(snapBForCopy?.rawJson);
 
-  const handleCopyNewAndChanged = async (fmt: "full" | "short") => {
-    if (!compareResult?.ok || !snapBForCopy?.rawJson) return;
-    const text = buildNewChangedClipboardText(compareResult, snapBForCopy.rawJson, fmt);
+  /** Endpoints that exist in B — the only ones that can be copied. */
+  const selectableIds = useMemo(
+    () =>
+      compareResult?.ok
+        ? [
+            ...compareResult.added.map((i) => i.id),
+            ...compareResult.changed.map((i) => i.id),
+          ]
+        : [],
+    [compareResult],
+  );
+
+  const setEndpointsSelected = (ids: string[], selected: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (selected) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleEndpoint = (id: string) =>
+    setEndpointsSelected([id], !selectedIds.has(id));
+
+  const selectedCount = selectedIds.size;
+  const canCopySelected = selectedCount > 0 && Boolean(snapBForCopy?.rawJson);
+
+  const handleCopySelected = async (fmt: "full" | "short") => {
+    if (!snapBForCopy?.rawJson) return;
+    // Keep the diff order (added, then changed) rather than click order.
+    const ids = selectableIds.filter((id) => selectedIds.has(id));
+    const text = buildEndpointsClipboardText(snapBForCopy.rawJson, ids, fmt);
     if (text === null) {
       toast("Nothing to copy", "error");
       return;
     }
     try {
       await navigator.clipboard.writeText(text);
-      toast(`New & changed (${fmt}) copied`, "success");
-    } catch {
-      toast("Couldn't access the clipboard", "error");
-    }
-  };
-
-  const handleCopyMinified = async () => {
-    if (!snapBForCopy?.rawJson) return;
-    const parsed = parseOpenApiInput(snapBForCopy.rawJson.trim());
-    if (parsed.error || !parsed.doc) {
-      toast("Invalid OpenAPI JSON", "error");
-      return;
-    }
-    const ids = buildEndpointIndex(parsed.doc).map((e) => e.id);
-    if (ids.length === 0) {
-      toast("Nothing to copy", "error");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(minifySwagger(ids, parsed.doc));
-      toast("Minified JSON copied", "success");
+      toast(
+        `${ids.length} endpoint${ids.length === 1 ? "" : "s"} copied (${fmt})`,
+        "success",
+      );
     } catch {
       toast("Couldn't access the clipboard", "error");
     }
@@ -165,7 +182,7 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:grid-rows-1",
+        "grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)] lg:grid-rows-1",
         className,
       )}
     >
@@ -252,30 +269,53 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
               Compare
             </Button>
             <Button
-              disabled={!canCopyNewAndChanged}
-              onClick={() => void handleCopyNewAndChanged("full")}
-              title="Copy the new & changed operations from B (full JSON)"
+              disabled={!canCopySelected}
+              onClick={() => void handleCopySelected("full")}
+              title="Copy the selected endpoints from B as minified JSON"
               leftIcon={<Copy className="h-3.5 w-3.5" />}
             >
-              New &amp; changed (JSON)
+              Copy selected (JSON)
             </Button>
             <Button
-              disabled={!canCopyNewAndChanged}
-              onClick={() => void handleCopyNewAndChanged("short")}
-              title="Copy the new & changed operations from B (short list)"
+              disabled={!canCopySelected}
+              onClick={() => void handleCopySelected("short")}
+              title="Copy the selected endpoints from B as a short method + path list"
               leftIcon={<Copy className="h-3.5 w-3.5" />}
             >
-              Short
+              Copy selected (short)
             </Button>
-            <Button
-              disabled={!snapBForCopy?.rawJson}
-              onClick={() => void handleCopyMinified()}
-              title="Copy the full minified JSON of snapshot B"
-              leftIcon={<Copy className="h-3.5 w-3.5" />}
-            >
-              Copy minified JSON
-            </Button>
+            {selectableIds.length > 0 ? (
+              <div className="ml-auto flex items-center gap-2 text-xs text-muted">
+                <span>
+                  <span className="font-mono text-accent">{selectedCount}</span> of{" "}
+                  {selectableIds.length} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEndpointsSelected(selectableIds, true)}
+                  className="font-medium text-accent hover:underline"
+                >
+                  Select all
+                </button>
+                <span className="text-line">|</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="font-medium text-accent hover:underline"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : null}
           </div>
+          {selectableIds.length > 0 ? (
+            <p className="mt-3 text-xs text-muted">
+              Tick endpoints in the path tree or the results below, then copy them.
+              Endpoints only in{" "}
+              <span className="font-mono text-rose-500">A</span> can&apos;t be copied
+              — they no longer exist in B.
+            </p>
+          ) : null}
           {notEnough ? (
             <p className="mt-3 text-xs text-muted">
               Save at least two snapshots in the Minifier to compare.
@@ -299,13 +339,17 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
                 result={compareResult}
                 selectedEndpointId={focusedEndpointId}
                 onSelectEndpoint={handleSelectEndpoint}
+                checkedEndpointIds={selectedIds}
+                onToggleEndpoint={toggleEndpoint}
+                onSetEndpointsChecked={setEndpointsSelected}
               />
             ) : null}
             <div className="scroll-ide min-h-0 flex-1 overflow-y-auto pr-1">
               <SwaggerCompareResults
                 result={compareResult}
-                rawJsonB={snapBForCopy?.rawJson}
                 focusedEndpointId={focusedEndpointId}
+                checkedEndpointIds={selectedIds}
+                onToggleEndpoint={toggleEndpoint}
               />
             </div>
           </div>

@@ -1,20 +1,14 @@
 "use client";
 
-import { type FC, useState } from "react";
-import { AlertTriangle, CheckCheck, Copy, GitCompare } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import type { FC } from "react";
+import { AlertTriangle, CheckCheck, GitCompare } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SwaggerDiagnosticsPanel } from "@/components/swagger/SwaggerDiagnosticsPanel";
-import { useToast } from "@/components/ui/ToastProvider";
 import type { MinifiedOperation } from "@/types/openapi";
 import type { OpenApiCompareResult } from "@/lib/openApiCompare";
 import { TextDiffUnified } from "./TextDiffUnified";
 import { endpointDomId } from "../_lib/compareTree";
-import { parseOpenApiInput } from "@/lib/openApiInput";
-import { minifySwagger } from "@/lib/swaggerMinifier";
-import { formatSwaggerEndpointsShort } from "@/lib/swaggerShortFormat";
 
 function formatOp(op: MinifiedOperation | undefined): string {
 	if (!op) return "—";
@@ -23,46 +17,19 @@ function formatOp(op: MinifiedOperation | undefined): string {
 
 type SwaggerCompareResultsProps = {
 	result: OpenApiCompareResult | null;
-	rawJsonB?: string;
 	/** Endpoint highlighted from the path tree. */
 	focusedEndpointId?: string | null;
-};
-
-const buildSelectedClipboardText = (
-	selectedEndpointIds: string[],
-	rawJsonB: string,
-	format: "full" | "short",
-): string | null => {
-	const parsedB = parseOpenApiInput(rawJsonB.trim());
-	if (parsedB.error || !parsedB.doc) return null;
-	if (format === "full") return minifySwagger(selectedEndpointIds, parsedB.doc);
-	return formatSwaggerEndpointsShort(parsedB.doc, selectedEndpointIds);
+	/** Endpoints ticked for copying — owned by the panel. */
+	checkedEndpointIds: ReadonlySet<string>;
+	onToggleEndpoint: (endpointId: string) => void;
 };
 
 export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 	result,
-	rawJsonB,
 	focusedEndpointId,
+	checkedEndpointIds,
+	onToggleEndpoint,
 }) => {
-	const { toast } = useToast();
-	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-	const [prevResult, setPrevResult] = useState<OpenApiCompareResult | null>(null);
-
-	// Sync selection when the result changes.
-	if (result !== prevResult) {
-		setPrevResult(result);
-		if (result && result.ok) {
-			setSelectedIds(
-				new Set<string>([
-					...result.added.map((i) => i.id),
-					...result.changed.map((i) => i.id),
-				]),
-			);
-		} else {
-			setSelectedIds(new Set());
-		}
-	}
-
 	if (!result) {
 		return (
 			<EmptyState
@@ -88,38 +55,6 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 	const { labelA, labelB, added, removed, changed, diagnosticsA, diagnosticsB } =
 		result;
 
-	const allSelectableIds = [
-		...added.map((i) => i.id),
-		...changed.map((i) => i.id),
-	];
-
-	const toggleEndpoint = (id: string) => {
-		setSelectedIds((prev) => {
-			const next = new Set(prev);
-			if (next.has(id)) next.delete(id);
-			else next.add(id);
-			return next;
-		});
-	};
-
-	const handleCopy = async (format: "full" | "short") => {
-		if (!rawJsonB || selectedIds.size === 0) return;
-		const text = buildSelectedClipboardText(Array.from(selectedIds), rawJsonB, format);
-		if (text === null) {
-			toast("Nothing to copy", "error");
-			return;
-		}
-		try {
-			await navigator.clipboard.writeText(text);
-			toast(`Selected (${format}) copied`, "success");
-		} catch {
-			toast("Couldn't access the clipboard", "error");
-		}
-	};
-
-	const selectableCount = allSelectableIds.length;
-	const selectedCount = selectedIds.size;
-
 	const noDiff = added.length === 0 && removed.length === 0 && changed.length === 0;
 
 	// An endpoint that shares its definition with another route isn't reliably
@@ -135,52 +70,6 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 		<div className="space-y-4">
 			<SwaggerDiagnosticsPanel report={diagnosticsA} label={labelA} />
 			<SwaggerDiagnosticsPanel report={diagnosticsB} label={labelB} />
-
-			{selectableCount > 0 && rawJsonB ? (
-				<Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-					<div className="flex flex-wrap items-center gap-3">
-						<span className="text-xs font-medium text-fg">
-							<span className="font-mono text-accent">{selectedCount}</span> of{" "}
-							{selectableCount} selected
-						</span>
-						<div className="flex items-center gap-2 text-xs">
-							<button
-								type="button"
-								onClick={() => setSelectedIds(new Set(allSelectableIds))}
-								className="font-medium text-accent hover:underline"
-							>
-								Select all
-							</button>
-							<span className="text-line">|</span>
-							<button
-								type="button"
-								onClick={() => setSelectedIds(new Set())}
-								className="font-medium text-accent hover:underline"
-							>
-								Deselect all
-							</button>
-						</div>
-					</div>
-					<div className="flex items-center gap-2">
-						<Button
-							size="sm"
-							disabled={selectedCount === 0}
-							onClick={() => void handleCopy("full")}
-							leftIcon={<Copy className="h-3.5 w-3.5" />}
-						>
-							Copy (JSON)
-						</Button>
-						<Button
-							size="sm"
-							disabled={selectedCount === 0}
-							onClick={() => void handleCopy("short")}
-							leftIcon={<Copy className="h-3.5 w-3.5" />}
-						>
-							Copy (Short)
-						</Button>
-					</div>
-				</Card>
-			) : null}
 
 			{removed.length > 0 ? (
 				<Section title={`Only in ${labelA}`} count={removed.length} tone="del">
@@ -217,8 +106,8 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 								>
 									<input
 										type="checkbox"
-										checked={selectedIds.has(item.id)}
-										onChange={() => toggleEndpoint(item.id)}
+										checked={checkedEndpointIds.has(item.id)}
+										onChange={() => onToggleEndpoint(item.id)}
 										className="h-4 w-4 shrink-0 rounded border-line text-accent focus:ring-accent"
 									/>
 									<span className="min-w-0 flex-1">
@@ -251,8 +140,8 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 								<label className="flex cursor-pointer items-center gap-3 border-b border-line px-3 py-2 font-mono text-xs text-amber-700 dark:text-amber-200">
 									<input
 										type="checkbox"
-										checked={selectedIds.has(row.id)}
-										onChange={() => toggleEndpoint(row.id)}
+										checked={checkedEndpointIds.has(row.id)}
+										onChange={() => onToggleEndpoint(row.id)}
 										className="h-4 w-4 shrink-0 rounded border-line text-accent focus:ring-accent"
 									/>
 									<span>{row.id}</span>

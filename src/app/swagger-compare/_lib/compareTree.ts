@@ -211,3 +211,17 @@ export function allFolderKeys(roots: CompareTreeFolder[]): string[] {
 	for (const root of roots) walk(root);
 	return keys;
 }
+
+/** Endpoint ids under `nodes` that exist in B and can therefore be copied. */
+export function selectableEndpointIds(nodes: CompareTreeNode[]): string[] {
+	const ids: string[] = [];
+	const walk = (node: CompareTreeNode) => {
+		if (node.kind === "leaf") {
+			if (node.status !== "removed") ids.push(node.endpointId);
+			return;
+		}
+		for (const child of node.children) walk(child);
+	};
+	for (const node of nodes) walk(node);
+	return ids;
+}

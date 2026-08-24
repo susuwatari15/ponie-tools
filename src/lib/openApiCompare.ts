@@ -124,37 +124,18 @@ export function compareOpenApiRawJson(
 	};
 }
 
-/** Minified JSON (same shape as Swagger Minifier output) for endpoints new or changed in B. */
-export function buildMinifiedNewAndChangedFromVersionB(
-	result: OpenApiCompareOk,
-	rawJsonB: string
-): string | null {
-	const parsedB = parseOpenApiInput(rawJsonB.trim());
-	if (parsedB.error || !parsedB.doc) return null;
-
-	const ids = [
-		...result.added.map((a) => a.id),
-		...result.changed.map((c) => c.id),
-	];
-	return minifySwagger(ids, parsedB.doc);
-}
-
-/** Clipboard text for new/changed endpoints in B: full minified JSON or short list. */
-export function buildNewChangedClipboardText(
-	result: OpenApiCompareOk,
-	rawJsonB: string,
+/** Clipboard text for a hand-picked set of endpoints: full minified JSON or short list. */
+export function buildEndpointsClipboardText(
+	rawJson: string,
+	endpointIds: string[],
 	format: SwaggerCopyFormat
 ): string | null {
-	if (format === "full") {
-		return buildMinifiedNewAndChangedFromVersionB(result, rawJsonB);
-	}
+	if (endpointIds.length === 0) return null;
 
-	const parsedB = parseOpenApiInput(rawJsonB.trim());
-	if (parsedB.error || !parsedB.doc) return null;
+	const parsed = parseOpenApiInput(rawJson.trim());
+	if (parsed.error || !parsed.doc) return null;
 
-	const ids = [
-		...result.added.map((a) => a.id),
-		...result.changed.map((c) => c.id),
-	];
-	return formatSwaggerEndpointsShort(parsedB.doc, ids);
+	return format === "full"
+		? minifySwagger(endpointIds, parsed.doc)
+		: formatSwaggerEndpointsShort(parsed.doc, endpointIds);
 }
