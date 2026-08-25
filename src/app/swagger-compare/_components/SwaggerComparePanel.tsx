@@ -182,7 +182,7 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)] lg:grid-rows-1",
+        "grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,5fr)] lg:grid-rows-1",
         className,
       )}
     >
@@ -334,8 +334,8 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
           </p>
           <div
             className={cn(
-              "grid min-h-0 flex-1 grid-cols-1 gap-4",
-              hasDiff && "lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]",
+              "grid min-h-0 flex-1 grid-cols-1 gap-2",
+              hasDiff && "lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)]",
             )}
           >
             {hasDiff ? (
