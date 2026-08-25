@@ -51,7 +51,7 @@ export const Sidebar: FC = () => {
 			{/* Desktop column */}
 			<aside
 				className={cn(
-					"w-64 shrink-0 border-r border-line bg-surface/60 backdrop-blur",
+					"w-64 shrink-0 border-r border-line bg-surface/60 backdrop-blur max-w-[15vw]",
 					collapsed ? "hidden" : "hidden lg:block",
 				)}
 			>
