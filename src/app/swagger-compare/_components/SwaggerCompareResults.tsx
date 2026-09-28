@@ -1,19 +1,22 @@
 "use client";
 
 import type { FC } from "react";
+import { useState } from "react";
 import { AlertTriangle, CheckCheck, GitCompare } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SwaggerDiagnosticsPanel } from "@/components/swagger/SwaggerDiagnosticsPanel";
-import type { MinifiedOperation } from "@/types/openapi";
 import type { OpenApiCompareResult } from "@/lib/openApiCompare";
 import { TextDiffUnified } from "./TextDiffUnified";
-import { endpointDomId } from "../_lib/compareTree";
+import { endpointDomId, schemaDomId } from "../_lib/compareTree";
 
-function formatOp(op: MinifiedOperation | undefined): string {
-	if (!op) return "—";
-	return JSON.stringify(op, null, 2);
+function formatJson(value: unknown): string {
+	if (value === undefined) return "—";
+	return JSON.stringify(value, null, 2);
 }
+
+/** "via" links shown per endpoint before collapsing the rest into a count. */
+const MAX_VIA_LINKS = 8;
 
 type SwaggerCompareResultsProps = {
 	result: OpenApiCompareResult | null;
@@ -30,6 +33,21 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 	checkedEndpointIds,
 	onToggleEndpoint,
 }) => {
+	const [focusedSchema, setFocusedSchema] = useState<string | null>(null);
+	const [prevResult, setPrevResult] = useState(result);
+
+	if (result !== prevResult) {
+		setPrevResult(result);
+		setFocusedSchema(null);
+	}
+
+	const jumpToSchema = (name: string) => {
+		setFocusedSchema(name);
+		document
+			.getElementById(schemaDomId(name))
+			?.scrollIntoView({ behavior: "smooth", block: "center" });
+	};
+
 	if (!result) {
 		return (
 			<EmptyState
@@ -52,8 +70,16 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 		);
 	}
 
-	const { labelA, labelB, added, removed, changed, diagnosticsA, diagnosticsB } =
-		result;
+	const {
+		labelA,
+		labelB,
+		added,
+		removed,
+		changed,
+		changedSchemas,
+		diagnosticsA,
+		diagnosticsB,
+	} = result;
 
 	const noDiff = added.length === 0 && removed.length === 0 && changed.length === 0;
 
@@ -125,6 +151,63 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 				</Section>
 			) : null}
 
+			{changedSchemas.length > 0 ? (
+				<Section title="Changed schemas" count={changedSchemas.length} tone="put">
+					<p className="mb-2 text-xs text-muted">
+						Each schema is diffed once here, with nested{" "}
+						<code className="font-mono">$ref</code>s shown by name. Endpoint diffs below
+						link back to the schemas behind them.
+					</p>
+					<ul className="space-y-3">
+						{changedSchemas.map((schema) => (
+							<li
+								key={schema.name}
+								id={schemaDomId(schema.name)}
+								className={cn(
+									"scroll-mt-4 overflow-hidden rounded-lg border border-line bg-surface",
+									focusedSchema === schema.name && focusRing,
+								)}
+							>
+								<div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-3 py-2 font-mono text-xs">
+									<span className="text-amber-700 dark:text-amber-200">{schema.name}</span>
+									{schema.status === "added" ? (
+										<span
+											className={cn(
+												statusBadge,
+												"border-emerald-500/40 text-emerald-600 dark:text-emerald-300",
+											)}
+										>
+											only in {labelB}
+										</span>
+									) : schema.status === "removed" ? (
+										<span
+											className={cn(
+												statusBadge,
+												"border-rose-500/40 text-rose-600 dark:text-rose-300",
+											)}
+										>
+											only in {labelA}
+										</span>
+									) : null}
+									<span className="ml-auto font-sans text-[11px] text-muted">
+										affects {schema.affectedEndpointIds.length} endpoint
+										{schema.affectedEndpointIds.length === 1 ? "" : "s"}
+									</span>
+								</div>
+								<div className="p-3">
+									<TextDiffUnified
+										labelA={labelA}
+										labelB={labelB}
+										oldText={formatJson(schema.left)}
+										newText={formatJson(schema.right)}
+									/>
+								</div>
+							</li>
+						))}
+					</ul>
+				</Section>
+			) : null}
+
 			{changed.length > 0 ? (
 				<Section title="Changed" count={changed.length} tone="put">
 					<ul className="space-y-3">
@@ -137,7 +220,7 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 									focusedEndpointId === row.id && focusRing,
 								)}
 							>
-								<label className="flex cursor-pointer items-center gap-3 border-b border-line px-3 py-2 font-mono text-xs text-amber-700 dark:text-amber-200">
+								<label className="flex cursor-pointer items-center gap-3 px-3 py-2 font-mono text-xs text-amber-700 dark:text-amber-200">
 									<input
 										type="checkbox"
 										checked={checkedEndpointIds.has(row.id)}
@@ -152,14 +235,35 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 										</span>
 									) : null}
 								</label>
-								<div className="p-3">
-									<TextDiffUnified
-										labelA={labelA}
-										labelB={labelB}
-										oldText={formatOp(row.left)}
-										newText={formatOp(row.right)}
-									/>
-								</div>
+								{row.viaSchemas.length > 0 ? (
+									<div className="flex flex-wrap items-center gap-1.5 border-t border-line px-3 py-1.5 text-[11px] text-muted">
+										<span>{row.ownChanged ? "Also via" : "Via"}</span>
+										{row.viaSchemas.slice(0, MAX_VIA_LINKS).map((name) => (
+											<button
+												key={name}
+												type="button"
+												onClick={() => jumpToSchema(name)}
+												title={`Jump to the ${name} diff`}
+												className="rounded border border-line bg-raised/60 px-1.5 py-0.5 font-mono text-amber-700 transition hover:border-accent hover:text-accent dark:text-amber-200"
+											>
+												{name}
+											</button>
+										))}
+										{row.viaSchemas.length > MAX_VIA_LINKS ? (
+											<span>+{row.viaSchemas.length - MAX_VIA_LINKS} more</span>
+										) : null}
+									</div>
+								) : null}
+								{row.ownChanged ? (
+									<div className="border-t border-line p-3">
+										<TextDiffUnified
+											labelA={labelA}
+											labelB={labelB}
+											oldText={formatJson(row.left)}
+											newText={formatJson(row.right)}
+										/>
+									</div>
+								) : null}
 							</li>
 						))}
 					</ul>
@@ -178,6 +282,8 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 };
 
 const focusRing = "ring-2 ring-accent/60 ring-offset-2 ring-offset-base";
+
+const statusBadge = "rounded border px-1.5 py-0.5 font-sans text-[10px] font-medium";
 
 const toneClasses: Record<"get" | "del" | "put", string> = {
 	get: "text-emerald-600 dark:text-emerald-300",

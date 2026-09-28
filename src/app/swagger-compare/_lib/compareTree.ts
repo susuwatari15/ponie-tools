@@ -42,6 +42,11 @@ export function endpointDomId(endpointId: string): string {
 	return `cmp-ep-${endpointId.replace(/[^a-zA-Z0-9]+/g, "-")}`;
 }
 
+/** DOM id of a changed-schema row, targeted by an endpoint's "via" links. */
+export function schemaDomId(schemaName: string): string {
+	return `cmp-schema-${schemaName.replace(/[^a-zA-Z0-9]+/g, "-")}`;
+}
+
 const emptyCounts = (): CompareCounts => ({ added: 0, removed: 0, changed: 0 });
 
 /** Flat list of every endpoint touched by the comparison. */

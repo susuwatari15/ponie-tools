@@ -111,22 +111,32 @@ export const schemaToTs = (
   return 'unknown';
 };
 
+export type CompressOptions = {
+  /**
+   * Expand every `$ref` into the schema it points to (default). `false` keeps
+   * refs as `{ $ref: name }`, so each named schema can be diffed once instead of
+   * once per endpoint that reaches it.
+   */
+  inlineRefs?: boolean;
+};
+
 export const compressSchema = (
   input: SchemaObject | undefined,
   doc: OpenApiDocument,
+  options: CompressOptions = {},
   seen = new Set<string>()
 ): CompressedSchema | undefined => {
   if (!input) return undefined;
 
   if (input.$ref) {
     const refName = getRefName(input.$ref);
-    if (seen.has(refName)) return { $ref: refName };
+    if (options.inlineRefs === false || seen.has(refName)) return { $ref: refName };
 
     const resolved = resolveSchemaRef(input, doc);
     if (!resolved || resolved === input) return { $ref: refName };
 
     seen.add(refName);
-    const result = compressSchema(resolved, doc, seen);
+    const result = compressSchema(resolved, doc, options, seen);
     seen.delete(refName);
     return result ?? { $ref: refName };
   }
@@ -146,7 +156,7 @@ export const compressSchema = (
   if (input.example !== undefined) compressed.example = input.example;
 
   if (input.type === 'array' && input.items) {
-    compressed.items = compressSchema(input.items, doc, seen);
+    compressed.items = compressSchema(input.items, doc, options, seen);
   }
 
   if (input.properties) {
@@ -154,7 +164,7 @@ export const compressSchema = (
     const props: Record<string, CompressedSchema> = {};
 
     for (const [name, schema] of Object.entries(input.properties)) {
-      const propCompressed = compressSchema(schema, doc, seen);
+      const propCompressed = compressSchema(schema, doc, options, seen);
       if (propCompressed) {
         if (requiredSet.has(name)) {
           propCompressed.required = true;
@@ -169,7 +179,7 @@ export const compressSchema = (
   }
 
   if (typeof input.additionalProperties === 'object') {
-    compressed.additionalProperties = compressSchema(input.additionalProperties, doc, seen);
+    compressed.additionalProperties = compressSchema(input.additionalProperties, doc, options, seen);
   }
 
   return compressed;
@@ -177,10 +187,11 @@ export const compressSchema = (
 
 const parameterToCompressed = (
   parameter: ParameterObject,
-  doc: OpenApiDocument
+  doc: OpenApiDocument,
+  options: CompressOptions
 ): CompressedSchema => {
   if (parameter.schema) {
-    const compressed = compressSchema(parameter.schema, doc);
+    const compressed = compressSchema(parameter.schema, doc, options);
     if (compressed) {
       if (parameter.description && !compressed.description) {
         compressed.description = parameter.description;
@@ -194,7 +205,7 @@ const parameterToCompressed = (
 
   if (parameter.type === 'array') {
     result.type = 'array';
-    result.items = parameter.items ? compressSchema(parameter.items, doc) : { type: 'string' };
+    result.items = parameter.items ? compressSchema(parameter.items, doc, options) : { type: 'string' };
   } else {
     result.type = parameter.type ?? 'string';
   }
@@ -266,7 +277,8 @@ const buildRequest = (
   sharedParameters: ParameterObject[] | undefined,
   operationParameters: ParameterObject[] | undefined,
   operation: OperationObject,
-  doc: OpenApiDocument
+  doc: OpenApiDocument,
+  options: CompressOptions
 ): MinifiedRequest | undefined => {
   const mergedParameters = [...(sharedParameters ?? []), ...(operationParameters ?? [])];
 
@@ -275,7 +287,7 @@ const buildRequest = (
     if (!['path', 'query', 'header', 'cookie'].includes(parameter.in)) continue;
 
     const key = parameter.name;
-    const compressed = parameterToCompressed(parameter, doc);
+    const compressed = parameterToCompressed(parameter, doc, options);
 
     if (parameter.in === 'path') request.path = { ...(request.path ?? {}), [key]: compressed };
     if (parameter.in === 'query') request.query = { ...(request.query ?? {}), [key]: compressed };
@@ -285,7 +297,7 @@ const buildRequest = (
 
   const requestBody = getRequestBodySchema(operation);
   if (requestBody) {
-    request.body = compressSchema(requestBody, doc);
+    request.body = compressSchema(requestBody, doc, options);
   }
 
   return Object.keys(request).length > 0 ? request : undefined;
@@ -311,7 +323,11 @@ export const buildEndpointIndex = (doc: OpenApiDocument): EndpointItem[] => {
   return endpoints;
 };
 
-export const minifySwaggerObject = (selectedEndpointIds: string[], doc: OpenApiDocument): MinifiedSwagger => {
+export const minifySwaggerObject = (
+  selectedEndpointIds: string[],
+  doc: OpenApiDocument,
+  options: CompressOptions = {}
+): MinifiedSwagger => {
   const output: MinifiedSwagger = {
     openapi: doc.openapi ?? (doc.swagger ? `swagger-${doc.swagger}` : 'openapi-minified'),
     info: {
@@ -344,14 +360,14 @@ export const minifySwaggerObject = (selectedEndpointIds: string[], doc: OpenApiD
       minifiedOp.tags = operation.tags;
     }
 
-    const request = buildRequest(pathItem.parameters, operation.parameters, operation, doc);
+    const request = buildRequest(pathItem.parameters, operation.parameters, operation, doc, options);
     if (request) {
       minifiedOp.request = request;
     }
 
     const responseSchema = getResponseSchema(pickPrimaryResponse(operation.responses));
     if (responseSchema) {
-      minifiedOp.response = compressSchema(responseSchema, doc);
+      minifiedOp.response = compressSchema(responseSchema, doc, options);
     }
 
     output.paths[parsed.path] = {
@@ -365,12 +381,13 @@ export const minifySwaggerObject = (selectedEndpointIds: string[], doc: OpenApiD
 
 export const getMinifiedOperationForEndpoint = (
   id: string,
-  doc: OpenApiDocument
+  doc: OpenApiDocument,
+  options: CompressOptions = {}
 ): MinifiedOperation | undefined => {
   const parsed = parseEndpointId(id);
   if (!parsed) return undefined;
 
-  const minified = minifySwaggerObject([id], doc);
+  const minified = minifySwaggerObject([id], doc, options);
   const pathItem = minified.paths[parsed.path];
   if (!pathItem) return undefined;
 
