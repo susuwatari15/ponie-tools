@@ -1,16 +1,17 @@
 "use client";
 
 import { format } from "date-fns";
-import { Copy, GitCompare } from "lucide-react";
+import { Copy, GitCompare, Loader2 } from "lucide-react";
 import type { FC } from "react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/components/ui/cn";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { SavedSnapshot } from "@/lib/swaggerSavedSnapshotsStorage";
-import { removeSnapshot } from "@/lib/swaggerSavedSnapshotsStorage";
+import { getSnapshotJson, removeSnapshot } from "@/lib/swaggerSavedSnapshotsStorage";
 import {
   buildEndpointsClipboardText,
   compareOpenApiRawJson,
@@ -18,7 +19,7 @@ import {
 } from "@/lib/openApiCompare";
 import { SwaggerCompareResults } from "./SwaggerCompareResults";
 import { SwaggerCompareTree } from "./SwaggerCompareTree";
-import { endpointDomId } from "../_lib/compareTree";
+import type { FocusRequest } from "../_hooks/useCompareResultsView";
 import { SwaggerSnapshotList } from "./SwaggerSnapshotList";
 
 type SwaggerComparePanelProps = {
@@ -35,6 +36,12 @@ function snapshotLabel(s: SavedSnapshot): string {
   return `${s.name} — ${format(new Date(s.createdAt), "yyyy-MM-dd HH:mm")}`;
 }
 
+/** Resolves after the browser has painted, so a busy state shows before heavy sync work. */
+const afterPaint = () =>
+  new Promise<void>((resolve) =>
+    requestAnimationFrame(() => setTimeout(resolve, 0)),
+  );
+
 export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
   snapshots,
   onSnapshotsChange,
@@ -49,25 +56,34 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
   const [idB, setIdB] = useState(initialSnapshotIdB);
   const [compareResult, setCompareResult] =
     useState<OpenApiCompareResult | null>(null);
-  const [focusedEndpointId, setFocusedEndpointId] = useState<string | null>(null);
+  const [focus, setFocus] = useState<FocusRequest | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  /** Spec text of the B side of the current result — what "copy" reads from. */
+  const [compareRawB, setCompareRawB] = useState<string | null>(null);
+  const [comparing, setComparing] = useState(false);
+  /** Bumped on every compare/reset so a stale in-flight compare is dropped. */
+  const compareRun = useRef(0);
 
   const resetResult = () => {
+    compareRun.current += 1;
+    setComparing(false);
     setCompareResult(null);
-    setFocusedEndpointId(null);
+    setCompareRawB(null);
+    setFocus(null);
     setSelectedIds(new Set());
   };
 
   /** Jump to the result row for a path picked in the tree. */
-  const handleSelectEndpoint = (endpointId: string) => {
-    setFocusedEndpointId(endpointId);
-    document
-      .getElementById(endpointDomId(endpointId))
-      ?.scrollIntoView({ behavior: "smooth", block: "center" });
-  };
+  const handleSelectEndpoint = (endpointId: string) =>
+    setFocus((prev) => ({ endpointId, seq: (prev?.seq ?? 0) + 1 }));
 
   const handleLoad = async (snap: SavedSnapshot) => {
-    await onLoadSnapshot(snap.rawJson);
+    const rawJson = await getSnapshotJson(snap.id);
+    if (rawJson === undefined) {
+      toast("Couldn't read that snapshot", "error");
+      return;
+    }
+    await onLoadSnapshot(rawJson);
     onSwitchToMinifier();
   };
 
@@ -92,7 +108,8 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
     if (idA === id) setIdA("");
   };
 
-  const handleCompare = () => {
+  const handleCompare = async () => {
+    resetResult();
     if (!idA || !idB || idA === idB) {
       setCompareResult({ ok: false, error: "Pick two different snapshots." });
       return;
@@ -103,12 +120,32 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
       setCompareResult({ ok: false, error: "Snapshot not found. Refresh the list." });
       return;
     }
-    setFocusedEndpointId(null);
-    const result = compareOpenApiRawJson(snapA.rawJson, snapB.rawJson, {
+
+    const run = compareRun.current;
+    setComparing(true);
+    const [rawA, rawB] = await Promise.all([
+      getSnapshotJson(snapA.id),
+      getSnapshotJson(snapB.id),
+    ]);
+    await afterPaint();
+    if (run !== compareRun.current) return;
+
+    setComparing(false);
+    if (rawA === undefined || rawB === undefined) {
+      setCompareResult({
+        ok: false,
+        error: "Couldn't read the snapshot from browser storage.",
+        side: rawA === undefined ? "a" : "b",
+      });
+      return;
+    }
+
+    const result = compareOpenApiRawJson(rawA, rawB, {
       labelA: snapA.name,
       labelB: snapB.name,
     });
     setCompareResult(result);
+    setCompareRawB(result.ok ? rawB : null);
     setSelectedIds(
       result.ok
         ? new Set([
@@ -118,8 +155,6 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
         : new Set(),
     );
   };
-
-  const snapBForCopy = idB ? snapshots.find((s) => s.id === idB) : undefined;
 
   /** Endpoints that exist in B — the only ones that can be copied. */
   const selectableIds = useMemo(
@@ -148,13 +183,13 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
     setEndpointsSelected([id], !selectedIds.has(id));
 
   const selectedCount = selectedIds.size;
-  const canCopySelected = selectedCount > 0 && Boolean(snapBForCopy?.rawJson);
+  const canCopySelected = selectedCount > 0 && compareRawB !== null;
 
   const handleCopySelected = async (fmt: "full" | "short") => {
-    if (!snapBForCopy?.rawJson) return;
+    if (compareRawB === null) return;
     // Keep the diff order (added, then changed) rather than click order.
     const ids = selectableIds.filter((id) => selectedIds.has(id));
-    const text = buildEndpointsClipboardText(snapBForCopy.rawJson, ids, fmt);
+    const text = buildEndpointsClipboardText(compareRawB, ids, fmt);
     if (text === null) {
       toast("Nothing to copy", "error");
       return;
@@ -264,11 +299,12 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
               <Button
                 size="sm"
                 variant="primary"
-                onClick={handleCompare}
-                disabled={notEnough}
+                onClick={() => void handleCompare()}
+                disabled={notEnough || comparing}
+                aria-busy={comparing}
                 leftIcon={<GitCompare className="h-3.5 w-3.5" />}
               >
-                Compare
+                {comparing ? "Comparing…" : "Compare"}
               </Button>
               <Button
                 size="sm"
@@ -342,7 +378,7 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
               <SwaggerCompareTree
                 className="max-h-72 lg:max-h-none"
                 result={compareResult}
-                selectedEndpointId={focusedEndpointId}
+                selectedEndpointId={focus?.endpointId ?? null}
                 onSelectEndpoint={handleSelectEndpoint}
                 checkedEndpointIds={selectedIds}
                 onToggleEndpoint={toggleEndpoint}
@@ -350,12 +386,20 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
               />
             ) : null}
             <div className="scroll-ide min-h-0 flex-1 overflow-y-auto pr-1">
-              <SwaggerCompareResults
-                result={compareResult}
-                focusedEndpointId={focusedEndpointId}
-                checkedEndpointIds={selectedIds}
-                onToggleEndpoint={toggleEndpoint}
-              />
+              {comparing ? (
+                <EmptyState
+                  icon={Loader2}
+                  title="Comparing…"
+                  description="Reading both snapshots and diffing them."
+                />
+              ) : (
+                <SwaggerCompareResults
+                  result={compareResult}
+                  focusRequest={focus}
+                  checkedEndpointIds={selectedIds}
+                  onToggleEndpoint={toggleEndpoint}
+                />
+              )}
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "@/components/ui/cn";
 import { buildUnifiedDiffLines } from "../_lib/buildUnifiedDiffLines";
 import { CharDiffStream } from "./CharDiffStream";
@@ -21,10 +21,16 @@ export const TextDiffUnified: FC<TextDiffUnifiedProps> = ({
 	oldText,
 	newText,
 }) => {
-	const [mode, setMode] = useState<DiffMode>("chars");
-	const rows = buildUnifiedDiffLines(oldText, newText);
+	// Line diffs are much cheaper than char diffs, so they're the default; each
+	// view is only computed while it is on screen.
+	const [mode, setMode] = useState<DiffMode>("lines");
 	const combinedLen = oldText.length + newText.length;
 	const showCharMode = combinedLen <= CHAR_DIFF_MAX_COMBINED;
+	const showLines = mode === "lines" || !showCharMode;
+	const rows = useMemo(
+		() => (showLines ? buildUnifiedDiffLines(oldText, newText) : []),
+		[showLines, oldText, newText],
+	);
 
 	return (
 		<div className="overflow-hidden rounded-lg border border-line bg-ink/40 dark:bg-ink/60">
@@ -65,7 +71,7 @@ export const TextDiffUnified: FC<TextDiffUnifiedProps> = ({
 				) : null}
 			</div>
 
-			{mode === "lines" || !showCharMode ? (
+			{showLines ? (
 				<div className="scroll-ide max-h-80 overflow-auto font-mono text-[11px] leading-relaxed">
 					{rows.map((row, i) => {
 						const base =

@@ -1,21 +1,24 @@
 /**
  * Minimal typed IndexedDB wrapper for the app's persisted data.
  *
- * Layout (DB "ponie-tools", v1):
- *  - object store "snapshots" (keyPath "id") — one record per saved snapshot;
- *    snapshots embed a full swagger spec, so per-record storage avoids
- *    rewriting the whole set (and blowing past quotas) on every save.
+ * Layout (DB "ponie-tools", v2):
+ *  - object store "snapshots" (keyPath "id") — one small metadata record per
+ *    saved snapshot, so listing them stays cheap however large the specs are.
+ *  - object store "snapshot-json" (out-of-line keys = snapshot id) — each
+ *    snapshot's full swagger text, read only when it is compared or loaded.
  *  - object store "keyval" (out-of-line keys) — small values: the profiles
  *    array, the current raw-json draft, and the selected-profile id.
  *
  * On first open we migrate the legacy localStorage keys into these stores and
- * then remove them, so existing users keep their data.
+ * then remove them, so existing users keep their data. v1 kept the spec text
+ * inside the "snapshots" records; upgrading to v2 moves it out.
  */
 
 const DB_NAME = "ponie-tools";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export const SNAPSHOTS_STORE = "snapshots";
+export const SNAPSHOT_JSON_STORE = "snapshot-json";
 export const KEYVAL_STORE = "keyval";
 
 /** keyval keys */
@@ -35,6 +38,32 @@ export function isIndexedDbAvailable(): boolean {
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
+/**
+ * Stores a legacy (v1-shaped) snapshot record as metadata + spec text. Records
+ * without string `rawJson` are left out, as `listSnapshots` always hid them.
+ */
+function putSplitSnapshot(tx: IDBTransaction, item: Record<string, unknown>): void {
+	const { rawJson, ...meta } = item;
+	if (typeof rawJson !== "string") return;
+	tx.objectStore(SNAPSHOTS_STORE).put({ ...meta, size: rawJson.length });
+	tx.objectStore(SNAPSHOT_JSON_STORE).put(rawJson, meta.id as IDBValidKey);
+}
+
+/** v1 -> v2: move each snapshot's spec text out of its metadata record. */
+function splitSnapshotRecords(tx: IDBTransaction): void {
+	const request = tx.objectStore(SNAPSHOTS_STORE).openCursor();
+	request.onsuccess = () => {
+		const cursor = request.result;
+		if (!cursor) return;
+		const { rawJson, ...meta } = cursor.value as Record<string, unknown>;
+		if (typeof rawJson === "string") {
+			tx.objectStore(SNAPSHOT_JSON_STORE).put(rawJson, cursor.primaryKey);
+			cursor.update({ ...meta, size: rawJson.length });
+		}
+		cursor.continue();
+	};
+}
+
 function migrateFromLocalStorage(tx: IDBTransaction): void {
 	if (typeof localStorage === "undefined") return;
 
@@ -43,10 +72,9 @@ function migrateFromLocalStorage(tx: IDBTransaction): void {
 		try {
 			const parsed = JSON.parse(snapshotsRaw) as unknown;
 			if (Array.isArray(parsed)) {
-				const store = tx.objectStore(SNAPSHOTS_STORE);
 				for (const item of parsed) {
 					if (item && typeof item === "object" && typeof (item as { id?: unknown }).id === "string") {
-						store.put(item);
+						putSplitSnapshot(tx, item as Record<string, unknown>);
 					}
 				}
 			}
@@ -116,19 +144,33 @@ export function openDb(): Promise<IDBDatabase> {
 			if (!db.objectStoreNames.contains(SNAPSHOTS_STORE)) {
 				db.createObjectStore(SNAPSHOTS_STORE, { keyPath: "id" });
 			}
+			if (!db.objectStoreNames.contains(SNAPSHOT_JSON_STORE)) {
+				db.createObjectStore(SNAPSHOT_JSON_STORE);
+			}
 			if (!db.objectStoreNames.contains(KEYVAL_STORE)) {
 				db.createObjectStore(KEYVAL_STORE);
 			}
-			if (event.oldVersion < 1 && tx) {
+			if (!tx) return;
+			// Both steps run inside the upgrade transaction: if either fails the
+			// upgrade aborts and the database stays at its previous version.
+			if (event.oldVersion < 1) {
 				didUpgrade = true;
 				migrateFromLocalStorage(tx);
+			} else if (event.oldVersion < 2) {
+				splitSnapshotRecords(tx);
 			}
 		};
 
 		request.onsuccess = () => {
 			// Only clear legacy keys once the migrating transaction has committed.
 			if (didUpgrade) cleanupLegacyLocalStorage();
-			resolve(request.result);
+			const db = request.result;
+			// Let a newer version of the app (another tab) upgrade the schema.
+			db.onversionchange = () => {
+				db.close();
+				dbPromise = null;
+			};
+			resolve(db);
 		};
 
 		request.onerror = () => reject(request.error);
@@ -182,6 +224,17 @@ export async function idbPut(
 	const tx = db.transaction(store, "readwrite");
 	if (key === undefined) tx.objectStore(store).put(value);
 	else tx.objectStore(store).put(value, key);
+	return txDone(tx);
+}
+
+/** Runs `write` in one readwrite transaction over `stores`; resolves once it commits. */
+export async function idbWrite(
+	stores: string[],
+	write: (tx: IDBTransaction) => void,
+): Promise<void> {
+	const db = await openDb();
+	const tx = db.transaction(stores, "readwrite");
+	write(tx);
 	return txDone(tx);
 }
 

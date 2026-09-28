@@ -7,6 +7,13 @@ import { IconButton } from "@/components/ui/IconButton";
 import { Layers } from "lucide-react";
 import type { SavedSnapshot } from "@/lib/swaggerSavedSnapshotsStorage";
 
+/** Character count shown as an approximate size — specs are overwhelmingly ASCII. */
+function formatSize(chars: number): string {
+	if (chars < 1_000) return `${chars} B`;
+	if (chars < 1_000_000) return `${Math.round(chars / 1_000)} KB`;
+	return `${(chars / 1_000_000).toFixed(1)} MB`;
+}
+
 type SwaggerSnapshotListProps = {
 	snapshots: SavedSnapshot[];
 	selectedIdA: string;
@@ -64,6 +71,10 @@ export const SwaggerSnapshotList: FC<SwaggerSnapshotListProps> = ({
 						</div>
 						<div className="mt-0.5 font-mono text-[11px] text-muted">
 							{format(new Date(snap.createdAt), "yyyy-MM-dd HH:mm:ss")}
+							<span className="text-muted/60" aria-hidden>
+								{" · "}
+							</span>
+							<span className="whitespace-nowrap">{formatSize(snap.size)}</span>
 						</div>
 
 						<div className="mt-2.5 flex flex-wrap items-center gap-1.5">

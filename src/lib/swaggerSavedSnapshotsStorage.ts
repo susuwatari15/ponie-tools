@@ -1,17 +1,19 @@
 import {
 	classifyWriteError,
-	idbDelete,
 	idbGet,
 	idbGetAll,
-	idbPut,
+	idbWrite,
+	SNAPSHOT_JSON_STORE,
 	SNAPSHOTS_STORE,
 } from "./indexedDb";
 
+/** A saved snapshot's metadata. The spec text is fetched separately with `getSnapshotJson`. */
 export type SavedSnapshot = {
 	id: string;
 	name: string;
 	createdAt: string;
-	rawJson: string;
+	/** Length of the stored spec text, in characters. */
+	size: number;
 	profileName?: string;
 	profileColor?: string;
 };
@@ -23,7 +25,7 @@ function isSnapshot(item: unknown): item is SavedSnapshot {
 		typeof (item as SavedSnapshot).id === "string" &&
 		typeof (item as SavedSnapshot).name === "string" &&
 		typeof (item as SavedSnapshot).createdAt === "string" &&
-		typeof (item as SavedSnapshot).rawJson === "string"
+		typeof (item as SavedSnapshot).size === "number"
 	);
 }
 
@@ -51,13 +53,16 @@ export async function addSnapshot(input: {
 		id: crypto.randomUUID(),
 		name: input.name.trim(),
 		createdAt: new Date().toISOString(),
-		rawJson: input.rawJson,
+		size: input.rawJson.length,
 		...(input.profileName ? { profileName: input.profileName } : {}),
 		...(input.profileColor ? { profileColor: input.profileColor } : {}),
 	};
 
 	try {
-		await idbPut(SNAPSHOTS_STORE, snapshot);
+		await idbWrite([SNAPSHOTS_STORE, SNAPSHOT_JSON_STORE], (tx) => {
+			tx.objectStore(SNAPSHOTS_STORE).put(snapshot);
+			tx.objectStore(SNAPSHOT_JSON_STORE).put(input.rawJson, snapshot.id);
+		});
 		return { ok: true, snapshot };
 	} catch (e: unknown) {
 		return { ok: false, error: classifyWriteError(e) };
@@ -66,16 +71,20 @@ export async function addSnapshot(input: {
 
 export async function removeSnapshot(id: string): Promise<void> {
 	try {
-		await idbDelete(SNAPSHOTS_STORE, id);
+		await idbWrite([SNAPSHOTS_STORE, SNAPSHOT_JSON_STORE], (tx) => {
+			tx.objectStore(SNAPSHOTS_STORE).delete(id);
+			tx.objectStore(SNAPSHOT_JSON_STORE).delete(id);
+		});
 	} catch {
 		// ignore
 	}
 }
 
-export async function getSnapshot(id: string): Promise<SavedSnapshot | undefined> {
+/** The snapshot's full spec text, or undefined when it can't be read. */
+export async function getSnapshotJson(id: string): Promise<string | undefined> {
 	try {
-		const snapshot = await idbGet<SavedSnapshot>(SNAPSHOTS_STORE, id);
-		return snapshot && isSnapshot(snapshot) ? snapshot : undefined;
+		const rawJson = await idbGet<unknown>(SNAPSHOT_JSON_STORE, id);
+		return typeof rawJson === "string" ? rawJson : undefined;
 	} catch {
 		return undefined;
 	}

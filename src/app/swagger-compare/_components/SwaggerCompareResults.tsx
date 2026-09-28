@@ -1,27 +1,27 @@
 "use client";
 
 import type { FC } from "react";
-import { useState } from "react";
-import { AlertTriangle, CheckCheck, GitCompare } from "lucide-react";
+import { CheckCheck, GitCompare } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SwaggerDiagnosticsPanel } from "@/components/swagger/SwaggerDiagnosticsPanel";
 import type { OpenApiCompareResult } from "@/lib/openApiCompare";
-import { TextDiffUnified } from "./TextDiffUnified";
-import { endpointDomId, schemaDomId } from "../_lib/compareTree";
-
-function formatJson(value: unknown): string {
-	if (value === undefined) return "—";
-	return JSON.stringify(value, null, 2);
-}
-
-/** "via" links shown per endpoint before collapsing the rest into a count. */
-const MAX_VIA_LINKS = 8;
+import { endpointDomId } from "../_lib/compareTree";
+import {
+	endpointKey,
+	expandableKeys,
+	schemaKey,
+	useCompareResultsView,
+	type FocusRequest,
+	type ResultSection,
+} from "../_hooks/useCompareResultsView";
+import { CompareResultSection } from "./CompareResultSection";
+import { ChangedEndpointRow, ChangedSchemaRow, focusRing } from "./CompareResultRows";
 
 type SwaggerCompareResultsProps = {
 	result: OpenApiCompareResult | null;
-	/** Endpoint highlighted from the path tree. */
-	focusedEndpointId?: string | null;
+	/** Endpoint picked in the path tree — paged in, expanded and scrolled to. */
+	focusRequest: FocusRequest | null;
 	/** Endpoints ticked for copying — owned by the panel. */
 	checkedEndpointIds: ReadonlySet<string>;
 	onToggleEndpoint: (endpointId: string) => void;
@@ -29,24 +29,11 @@ type SwaggerCompareResultsProps = {
 
 export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 	result,
-	focusedEndpointId,
+	focusRequest,
 	checkedEndpointIds,
 	onToggleEndpoint,
 }) => {
-	const [focusedSchema, setFocusedSchema] = useState<string | null>(null);
-	const [prevResult, setPrevResult] = useState(result);
-
-	if (result !== prevResult) {
-		setPrevResult(result);
-		setFocusedSchema(null);
-	}
-
-	const jumpToSchema = (name: string) => {
-		setFocusedSchema(name);
-		document
-			.getElementById(schemaDomId(name))
-			?.scrollIntoView({ behavior: "smooth", block: "center" });
-	};
+	const view = useCompareResultsView(result, focusRequest);
 
 	if (!result) {
 		return (
@@ -92,21 +79,52 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 				?.some((issue) => issue.code === "duplicate-operation-body"),
 		);
 
+	const paging = (section: ResultSection, count: number) => {
+		const { start, end } = view.rowWindow(section);
+		return {
+			count,
+			start: Math.min(start, count),
+			end: Math.min(end, count),
+			onShowPrevious: () => view.showPrevious(section),
+			onShowNext: () => view.showNext(section),
+			onShowAll: () => view.showAll(section),
+		};
+	};
+
+	/** The rows of a section inside its current window. */
+	const windowed = <T,>(section: ResultSection, rows: T[]): T[] => {
+		const { start, end } = view.rowWindow(section);
+		return rows.slice(start, end);
+	};
+
+	const expandControls = (section: "schemas" | "changed") => {
+		const keys = expandableKeys(result, section);
+		if (keys.length === 0) return {};
+		return {
+			onExpandAll: () => view.setKeysExpanded(keys, true),
+			onCollapseAll: () => view.setKeysExpanded(keys, false),
+		};
+	};
+
 	return (
 		<div className="space-y-4">
 			<SwaggerDiagnosticsPanel report={diagnosticsA} label={labelA} />
 			<SwaggerDiagnosticsPanel report={diagnosticsB} label={labelB} />
 
 			{removed.length > 0 ? (
-				<Section title={`Only in ${labelA}`} count={removed.length} tone="del">
+				<CompareResultSection
+					title={`Only in ${labelA}`}
+					tone="del"
+					{...paging("removed", removed.length)}
+				>
 					<ul className="space-y-1.5">
-						{removed.map((item) => (
+						{windowed("removed", removed).map((item) => (
 							<li
 								key={item.id}
 								id={endpointDomId(item.id)}
 								className={cn(
 									"scroll-mt-4 rounded-lg border border-line bg-raised/40 px-3 py-2 font-mono text-xs text-fg",
-									focusedEndpointId === item.id && focusRing,
+									view.isFocused(endpointKey(item.id)) && focusRing,
 								)}
 							>
 								<span className="text-rose-600 dark:text-rose-300">{item.id}</span>
@@ -116,18 +134,22 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 							</li>
 						))}
 					</ul>
-				</Section>
+				</CompareResultSection>
 			) : null}
 
 			{added.length > 0 ? (
-				<Section title={`Only in ${labelB}`} count={added.length} tone="get">
+				<CompareResultSection
+					title={`Only in ${labelB}`}
+					tone="get"
+					{...paging("added", added.length)}
+				>
 					<ul className="space-y-1.5">
-						{added.map((item) => (
+						{windowed("added", added).map((item) => (
 							<li key={item.id} id={endpointDomId(item.id)} className="scroll-mt-4">
 								<label
 									className={cn(
 										"flex cursor-pointer items-center gap-3 rounded-lg border border-line bg-raised/40 px-3 py-2 font-mono text-xs text-fg",
-										focusedEndpointId === item.id && focusRing,
+										view.isFocused(endpointKey(item.id)) && focusRing,
 									)}
 								>
 									<input
@@ -148,126 +170,64 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 							</li>
 						))}
 					</ul>
-				</Section>
+				</CompareResultSection>
 			) : null}
 
 			{changedSchemas.length > 0 ? (
-				<Section title="Changed schemas" count={changedSchemas.length} tone="put">
-					<p className="mb-2 text-xs text-muted">
-						Each schema is diffed once here, with nested{" "}
-						<code className="font-mono">$ref</code>s shown by name. Endpoint diffs below
-						link back to the schemas behind them.
-					</p>
-					<ul className="space-y-3">
-						{changedSchemas.map((schema) => (
-							<li
+				<CompareResultSection
+					title="Changed schemas"
+					tone="put"
+					description={
+						<>
+							Each schema is diffed once here, with nested{" "}
+							<code className="font-mono">$ref</code>s shown by name. Endpoint diffs below
+							link back to the schemas behind them.
+						</>
+					}
+					{...paging("schemas", changedSchemas.length)}
+					{...expandControls("schemas")}
+				>
+					<ul className="space-y-2">
+						{windowed("schemas", changedSchemas).map((schema) => (
+							<ChangedSchemaRow
 								key={schema.name}
-								id={schemaDomId(schema.name)}
-								className={cn(
-									"scroll-mt-4 overflow-hidden rounded-lg border border-line bg-surface",
-									focusedSchema === schema.name && focusRing,
-								)}
-							>
-								<div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-3 py-2 font-mono text-xs">
-									<span className="text-amber-700 dark:text-amber-200">{schema.name}</span>
-									{schema.status === "added" ? (
-										<span
-											className={cn(
-												statusBadge,
-												"border-emerald-500/40 text-emerald-600 dark:text-emerald-300",
-											)}
-										>
-											only in {labelB}
-										</span>
-									) : schema.status === "removed" ? (
-										<span
-											className={cn(
-												statusBadge,
-												"border-rose-500/40 text-rose-600 dark:text-rose-300",
-											)}
-										>
-											only in {labelA}
-										</span>
-									) : null}
-									<span className="ml-auto font-sans text-[11px] text-muted">
-										affects {schema.affectedEndpointIds.length} endpoint
-										{schema.affectedEndpointIds.length === 1 ? "" : "s"}
-									</span>
-								</div>
-								<div className="p-3">
-									<TextDiffUnified
-										labelA={labelA}
-										labelB={labelB}
-										oldText={formatJson(schema.left)}
-										newText={formatJson(schema.right)}
-									/>
-								</div>
-							</li>
+								schema={schema}
+								labelA={labelA}
+								labelB={labelB}
+								expanded={view.isExpanded(schemaKey(schema.name))}
+								onToggleExpanded={() => view.toggleExpanded(schemaKey(schema.name))}
+								focused={view.isFocused(schemaKey(schema.name))}
+							/>
 						))}
 					</ul>
-				</Section>
+				</CompareResultSection>
 			) : null}
 
 			{changed.length > 0 ? (
-				<Section title="Changed" count={changed.length} tone="put">
-					<ul className="space-y-3">
-						{changed.map((row) => (
-							<li
+				<CompareResultSection
+					title="Changed"
+					tone="put"
+					{...paging("changed", changed.length)}
+					{...expandControls("changed")}
+				>
+					<ul className="space-y-2">
+						{windowed("changed", changed).map((row) => (
+							<ChangedEndpointRow
 								key={row.id}
-								id={endpointDomId(row.id)}
-								className={cn(
-									"scroll-mt-4 overflow-hidden rounded-lg border border-line bg-surface",
-									focusedEndpointId === row.id && focusRing,
-								)}
-							>
-								<label className="flex cursor-pointer items-center gap-3 px-3 py-2 font-mono text-xs text-amber-700 dark:text-amber-200">
-									<input
-										type="checkbox"
-										checked={checkedEndpointIds.has(row.id)}
-										onChange={() => onToggleEndpoint(row.id)}
-										className="h-4 w-4 shrink-0 rounded border-line text-accent focus:ring-accent"
-									/>
-									<span>{row.id}</span>
-									{hasSharedDefinition(row.id) ? (
-										<span className="inline-flex items-center gap-1 rounded border border-del/40 bg-del/10 px-1.5 py-0.5 font-sans text-[10px] font-medium text-del">
-											<AlertTriangle className="h-3 w-3" aria-hidden />
-											spec issue — diff may be unreliable
-										</span>
-									) : null}
-								</label>
-								{row.viaSchemas.length > 0 ? (
-									<div className="flex flex-wrap items-center gap-1.5 border-t border-line px-3 py-1.5 text-[11px] text-muted">
-										<span>{row.ownChanged ? "Also via" : "Via"}</span>
-										{row.viaSchemas.slice(0, MAX_VIA_LINKS).map((name) => (
-											<button
-												key={name}
-												type="button"
-												onClick={() => jumpToSchema(name)}
-												title={`Jump to the ${name} diff`}
-												className="rounded border border-line bg-raised/60 px-1.5 py-0.5 font-mono text-amber-700 transition hover:border-accent hover:text-accent dark:text-amber-200"
-											>
-												{name}
-											</button>
-										))}
-										{row.viaSchemas.length > MAX_VIA_LINKS ? (
-											<span>+{row.viaSchemas.length - MAX_VIA_LINKS} more</span>
-										) : null}
-									</div>
-								) : null}
-								{row.ownChanged ? (
-									<div className="border-t border-line p-3">
-										<TextDiffUnified
-											labelA={labelA}
-											labelB={labelB}
-											oldText={formatJson(row.left)}
-											newText={formatJson(row.right)}
-										/>
-									</div>
-								) : null}
-							</li>
+								row={row}
+								labelA={labelA}
+								labelB={labelB}
+								checked={checkedEndpointIds.has(row.id)}
+								onToggleChecked={() => onToggleEndpoint(row.id)}
+								expanded={view.isExpanded(endpointKey(row.id))}
+								onToggleExpanded={() => view.toggleExpanded(endpointKey(row.id))}
+								focused={view.isFocused(endpointKey(row.id))}
+								sharedDefinition={hasSharedDefinition(row.id)}
+								onJumpToSchema={(name) => view.reveal(schemaKey(name))}
+							/>
 						))}
 					</ul>
-				</Section>
+				</CompareResultSection>
 			) : null}
 
 			{noDiff ? (
@@ -280,30 +240,3 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 		</div>
 	);
 };
-
-const focusRing = "ring-2 ring-accent/60 ring-offset-2 ring-offset-base";
-
-const statusBadge = "rounded border px-1.5 py-0.5 font-sans text-[10px] font-medium";
-
-const toneClasses: Record<"get" | "del" | "put", string> = {
-	get: "text-emerald-600 dark:text-emerald-300",
-	del: "text-rose-600 dark:text-rose-300",
-	put: "text-amber-700 dark:text-amber-200",
-};
-
-const Section: FC<{
-	title: string;
-	count: number;
-	tone: "get" | "del" | "put";
-	children: React.ReactNode;
-}> = ({ title, count, tone, children }) => (
-	<section>
-		<h3 className={cn("mb-2 flex items-center gap-2 text-sm font-semibold", toneClasses[tone])}>
-			{title}
-			<span className="rounded-full border border-current/30 px-2 py-0.5 text-xs">
-				{count}
-			</span>
-		</h3>
-		{children}
-	</section>
-);
