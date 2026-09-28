@@ -12,14 +12,12 @@ type SwaggerCompressedOutputProps = {
   hasParseError: boolean;
   selectedCount: number;
   minifiedOutput: string;
-  minifiedOutputShort: string;
 };
 
 export const SwaggerCompressedOutput: FC<SwaggerCompressedOutputProps> = ({
   hasParseError,
   selectedCount,
   minifiedOutput,
-  minifiedOutputShort,
 }) => {
   const { toast } = useToast();
 
@@ -63,22 +61,13 @@ export const SwaggerCompressedOutput: FC<SwaggerCompressedOutputProps> = ({
           </Button>
           <Button
             size="sm"
-            disabled={!minifiedOutputShort}
-            onClick={() => copy("Short list", minifiedOutputShort)}
-            title="Module + endpoint list"
-            leftIcon={<Copy className="h-3.5 w-3.5" />}
-          >
-            Short
-          </Button>
-          <Button
-            size="sm"
             variant="primary"
             disabled={!hasOutput}
             onClick={() => copy("Minified JSON", minifiedString)}
             title="Compact single-line JSON"
             leftIcon={<Copy className="h-3.5 w-3.5" />}
           >
-            Minified
+            Copy Minified
           </Button>
         </div>
       </div>

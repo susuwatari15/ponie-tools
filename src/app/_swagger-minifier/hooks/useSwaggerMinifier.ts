@@ -19,7 +19,6 @@ import {
 } from "@/lib/openApiDiagnostics";
 import { parseOpenApiInput } from "@/lib/openApiInput";
 import { readStoredRawJson } from "@/lib/swaggerRawJsonStorage";
-import { formatSwaggerEndpointsShort } from "@/lib/swaggerShortFormat";
 import {
 	fetchSwaggerViaExtension,
 	isExtensionAvailable,
@@ -34,7 +33,7 @@ import {
 	writeSelectedProfileId,
 } from "@/lib/swaggerProfilesStorage";
 
-export type SwaggerMinifierCopyFormat = "full" | "short" | "minified";
+export type SwaggerMinifierCopyFormat = "full" | "minified";
 
 export function useSwaggerMinifier(initialJson: string) {
 	const [rawJson, setRawJson] = useState(initialJson);
@@ -181,11 +180,6 @@ export function useSwaggerMinifier(initialJson: string) {
 		return minifySwagger(Array.from(selectedIds), parsed.doc);
 	}, [parsed.doc, parsed.error, selectedIds]);
 
-	const minifiedOutputShort = useMemo(() => {
-		if (!parsed.doc || parsed.error || selectedIds.size === 0) return "";
-		return formatSwaggerEndpointsShort(parsed.doc, Array.from(selectedIds));
-	}, [parsed.doc, parsed.error, selectedIds]);
-
 	const selectedCount = selectedIds.size;
 	const visibleAllSelected =
 		filteredEndpoints.length > 0 &&
@@ -232,15 +226,13 @@ export function useSwaggerMinifier(initialJson: string) {
 		const text =
 			format === "full"
 				? minifiedOutput
-				: format === "short"
-					? minifiedOutputShort
-					: (() => {
-						try {
-							return JSON.stringify(JSON.parse(minifiedOutput));
-						} catch {
-							return minifiedOutput;
-						}
-					})();
+				: (() => {
+					try {
+						return JSON.stringify(JSON.parse(minifiedOutput));
+					} catch {
+						return minifiedOutput;
+					}
+				})();
 		if (!text) return;
 
 		try {
@@ -341,7 +333,6 @@ export function useSwaggerMinifier(initialJson: string) {
 		allEndpoints,
 		filteredEndpoints,
 		minifiedOutput,
-		minifiedOutputShort,
 		selectedCount,
 		visibleAllSelected,
 		toggleSelection,

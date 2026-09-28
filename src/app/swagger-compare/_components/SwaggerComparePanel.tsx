@@ -16,6 +16,7 @@ import {
   buildEndpointsClipboardText,
   compareOpenApiRawJson,
   type OpenApiCompareResult,
+  type SwaggerCopyFormat,
 } from "@/lib/openApiCompare";
 import { SwaggerCompareResults } from "./SwaggerCompareResults";
 import { SwaggerCompareTree } from "./SwaggerCompareTree";
@@ -185,7 +186,7 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
   const selectedCount = selectedIds.size;
   const canCopySelected = selectedCount > 0 && compareRawB !== null;
 
-  const handleCopySelected = async (fmt: "full" | "short") => {
+  const handleCopySelected = async (fmt: SwaggerCopyFormat) => {
     if (compareRawB === null) return;
     // Keep the diff order (added, then changed) rather than click order.
     const ids = selectableIds.filter((id) => selectedIds.has(id));
@@ -310,7 +311,7 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
                 size="sm"
                 disabled={!canCopySelected}
                 onClick={() => void handleCopySelected("full")}
-                title="Copy the selected endpoints from B as minified JSON"
+                title="Copy the selected endpoints from B as pretty-printed JSON"
                 leftIcon={<Copy className="h-3.5 w-3.5" />}
               >
                 JSON
@@ -318,11 +319,11 @@ export const SwaggerComparePanel: FC<SwaggerComparePanelProps> = ({
               <Button
                 size="sm"
                 disabled={!canCopySelected}
-                onClick={() => void handleCopySelected("short")}
-                title="Copy the selected endpoints from B as a short method + path list"
+                onClick={() => void handleCopySelected("minified")}
+                title="Copy the selected endpoints from B as compact single-line JSON"
                 leftIcon={<Copy className="h-3.5 w-3.5" />}
               >
-                Short
+                Copy Minified
               </Button>
               {selectableIds.length > 0 ? (
                 <span className="flex items-center gap-2 text-xs text-muted">

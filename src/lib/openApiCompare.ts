@@ -2,7 +2,7 @@ import type { CompressedSchema, MinifiedOperation } from "../types/openapi";
 import {
 	buildEndpointIndex,
 	getMinifiedOperationForEndpoint,
-	minifySwagger,
+	minifySwaggerObject,
 } from "./swaggerMinifier";
 import {
 	collectOpenApiDiagnostics,
@@ -16,7 +16,9 @@ import {
 	SHALLOW,
 	type SchemaIndex,
 } from "./openApiSchemaIndex";
-import { formatSwaggerEndpointsShort, type SwaggerCopyFormat } from "./swaggerShortFormat";
+
+/** `full` = pretty-printed JSON, `minified` = compact single-line JSON. */
+export type SwaggerCopyFormat = "full" | "minified";
 
 export type EndpointPresence = {
 	id: string;
@@ -228,7 +230,7 @@ export function compareOpenApiRawJson(
 	};
 }
 
-/** Clipboard text for a hand-picked set of endpoints: full minified JSON or short list. */
+/** Clipboard text for a hand-picked set of endpoints: pretty or compact minified JSON. */
 export function buildEndpointsClipboardText(
 	rawJson: string,
 	endpointIds: string[],
@@ -239,7 +241,8 @@ export function buildEndpointsClipboardText(
 	const parsed = parseOpenApiInput(rawJson.trim());
 	if (parsed.error || !parsed.doc) return null;
 
+	const minified = minifySwaggerObject(endpointIds, parsed.doc);
 	return format === "full"
-		? minifySwagger(endpointIds, parsed.doc)
-		: formatSwaggerEndpointsShort(parsed.doc, endpointIds);
+		? JSON.stringify(minified, null, 2)
+		: JSON.stringify(minified);
 }

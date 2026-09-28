@@ -58,7 +58,6 @@ const SwaggerMinifier: FC<SwaggerMinifierProps> = ({
       hasParseError={Boolean(m.parsed.error)}
       selectedCount={m.selectedCount}
       minifiedOutput={m.minifiedOutput}
-      minifiedOutputShort={m.minifiedOutputShort}
     />
   </div>
 );
