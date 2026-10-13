@@ -90,15 +90,19 @@ html.dark body {
   background-color: rgb(var(--muted) / 0.5);
 }
 
-/* Spec visualizer: "current" flowing along the lit route trail. */
-@keyframes spec-edge-flow {
-  to {
-    stroke-dashoffset: -20;
+/* Brick view: bricks drop onto their baseplate when the view (re)builds. */
+@keyframes brick-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(2px);
   }
 }
-.spec-edge-flow {
-  stroke-dasharray: 6 4;
-  animation: spec-edge-flow 0.9s linear infinite;
+.brick-drop {
+  animation: brick-drop 0.32s ease-out backwards;
 }
 
 @keyframes spec-inspector-enter {

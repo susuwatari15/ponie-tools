@@ -1,20 +1,22 @@
 "use client";
 
-import { Braces, Copy, FileJson, Waypoints, type LucideIcon } from "lucide-react";
-import { useState, type FC } from "react";
+import { Braces, Copy, FileJson, ListTree, ToyBrick, type LucideIcon } from "lucide-react";
+import { useMemo, useState, type FC } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { JsonTree } from "@/components/ui/JsonTree";
 import { JsonView } from "@/components/ui/JsonView";
 import { useToast } from "@/components/ui/ToastProvider";
-import { SpecVisualizer } from "./spec-visualizer/SpecVisualizer";
+import { SpecBrickView } from "./spec-bricks/SpecBrickView";
 
-type OutputViewMode = "json" | "visual";
+type OutputViewMode = "json" | "tree" | "bricks";
 
 const VIEW_MODES: { value: OutputViewMode; label: string; icon: LucideIcon }[] = [
   { value: "json", label: "JSON", icon: Braces },
-  { value: "visual", label: "Visual", icon: Waypoints },
+  { value: "tree", label: "Tree", icon: ListTree },
+  { value: "bricks", label: "Bricks", icon: ToyBrick },
 ];
 
 type SwaggerCompressedOutputProps = {
@@ -43,13 +45,16 @@ export const SwaggerCompressedOutput: FC<SwaggerCompressedOutputProps> = ({
     }
   };
 
-  const minifiedString = (() => {
+  const parsedOutput = useMemo<unknown>(() => {
     try {
-      return JSON.stringify(JSON.parse(minifiedOutput));
+      return JSON.parse(minifiedOutput);
     } catch {
-      return minifiedOutput;
+      return undefined;
     }
-  })();
+  }, [minifiedOutput]);
+
+  const minifiedString =
+    parsedOutput === undefined ? minifiedOutput : JSON.stringify(parsedOutput);
 
   const hasOutput = Boolean(minifiedOutput);
 
@@ -124,8 +129,10 @@ export const SwaggerCompressedOutput: FC<SwaggerCompressedOutputProps> = ({
             description="Pick one or more endpoints from the left pane to build a prompt-ready spec."
             className="h-full"
           />
-        ) : viewMode === "visual" ? (
-          <SpecVisualizer
+        ) : viewMode === "tree" && parsedOutput !== undefined ? (
+          <JsonTree value={parsedOutput} className="h-full" />
+        ) : viewMode === "bricks" ? (
+          <SpecBrickView
             minifiedOutput={minifiedOutput}
             onDeselectEndpoint={onDeselectEndpoint}
             className="h-full"

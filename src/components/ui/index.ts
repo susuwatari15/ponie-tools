@@ -12,6 +12,7 @@ export type { SelectProps } from "./Select";
 export { Card, CardHeader } from "./Card";
 export type { CardProps, CardHeaderProps } from "./Card";
 export { JsonView } from "./JsonView";
+export { JsonTree } from "./JsonTree";
 export { Badge, MethodBadge } from "./Badge";
 export type { BadgeProps, BadgeTone } from "./Badge";
 export { Collapsible } from "./Collapsible";
