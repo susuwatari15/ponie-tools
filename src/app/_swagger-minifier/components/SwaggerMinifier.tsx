@@ -58,6 +58,7 @@ const SwaggerMinifier: FC<SwaggerMinifierProps> = ({
       hasParseError={Boolean(m.parsed.error)}
       selectedCount={m.selectedCount}
       minifiedOutput={m.minifiedOutput}
+      onDeselectEndpoint={m.toggleSelection}
     />
   </div>
 );

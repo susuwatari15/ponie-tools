@@ -90,6 +90,27 @@ html.dark body {
   background-color: rgb(var(--muted) / 0.5);
 }
 
+/* Spec visualizer: "current" flowing along the lit route trail. */
+@keyframes spec-edge-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+.spec-edge-flow {
+  stroke-dasharray: 6 4;
+  animation: spec-edge-flow 0.9s linear infinite;
+}
+
+@keyframes spec-inspector-enter {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+}
+.spec-inspector-enter {
+  animation: spec-inspector-enter 0.16s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
