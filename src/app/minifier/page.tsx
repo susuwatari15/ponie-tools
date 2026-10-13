@@ -21,7 +21,7 @@ const SwaggerMinifierPage: FC = () => {
 	};
 
 	return (
-		<div className="mx-auto flex h-full w-full max-w-[1600px] flex-col gap-5 p-4 sm:p-6">
+		<div className="mx-auto flex h-full w-full flex-col gap-5 p-4 sm:p-6">
 			<PageHeader
 				eyebrow="// swagger · minify"
 				title="Swagger Minifier"

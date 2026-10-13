@@ -1,7 +1,7 @@
 "use client";
 
 import { Braces, Copy, FileJson, ListTree, ToyBrick, type LucideIcon } from "lucide-react";
-import { useMemo, useState, type FC } from "react";
+import { useEffect, useMemo, useState, type FC } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/components/ui/cn";
@@ -13,11 +13,17 @@ import { SpecBrickView } from "./spec-bricks/SpecBrickView";
 
 type OutputViewMode = "json" | "tree" | "bricks";
 
+const VIEW_MODE_STORAGE_KEY = "ponie-minifier-output-view";
+
 const VIEW_MODES: { value: OutputViewMode; label: string; icon: LucideIcon }[] = [
   { value: "json", label: "JSON", icon: Braces },
   { value: "tree", label: "Tree", icon: ListTree },
   { value: "bricks", label: "Bricks", icon: ToyBrick },
 ];
+
+function isOutputViewMode(value: unknown): value is OutputViewMode {
+  return VIEW_MODES.some((mode) => mode.value === value);
+}
 
 type SwaggerCompressedOutputProps = {
   hasParseError: boolean;
@@ -33,7 +39,27 @@ export const SwaggerCompressedOutput: FC<SwaggerCompressedOutputProps> = ({
   onDeselectEndpoint,
 }) => {
   const { toast } = useToast();
-  const [viewMode, setViewMode] = useState<OutputViewMode>("json");
+  const [viewMode, setViewModeState] = useState<OutputViewMode>("json");
+
+  // Restore after mount — localStorage isn't available during SSR, and reading
+  // it in the initial state would cause a hydration mismatch.
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+      if (isOutputViewMode(stored)) setViewModeState(stored);
+    } catch {
+      // storage unavailable
+    }
+  }, []);
+
+  const setViewMode = (next: OutputViewMode) => {
+    setViewModeState(next);
+    try {
+      window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, next);
+    } catch {
+      // storage unavailable
+    }
+  };
 
   const copy = async (label: string, text: string) => {
     if (!text) return;
@@ -59,7 +85,7 @@ export const SwaggerCompressedOutput: FC<SwaggerCompressedOutputProps> = ({
   const hasOutput = Boolean(minifiedOutput);
 
   return (
-    <Card flush className="flex min-h-[560px] flex-col overflow-hidden lg:min-h-0">
+    <Card flush className="lg:col-span-2 flex min-h-[560px] flex-col overflow-hidden lg:min-h-0">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
         <div className="min-w-0">
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
