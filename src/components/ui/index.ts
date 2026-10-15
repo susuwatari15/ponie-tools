@@ -26,3 +26,6 @@ export { Modal } from "./Modal";
 export type { ModalProps } from "./Modal";
 export { ToastProvider, useToast } from "./ToastProvider";
 export { methodStyle, METHOD_STYLES, HTTP_METHOD_ORDER } from "./methodColors";
+export { ResizeHandle } from "./ResizeHandle";
+export { useResizableSplit } from "./useResizableSplit";
+export type { UseResizableSplitOptions } from "./useResizableSplit";

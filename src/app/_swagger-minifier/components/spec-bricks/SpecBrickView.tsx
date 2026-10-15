@@ -4,6 +4,8 @@ import { useEffect, useRef, type FC, type KeyboardEvent } from "react";
 import { cn } from "@/components/ui/cn";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { HTTP_METHOD_ORDER } from "@/components/ui/methodColors";
+import { ResizeHandle } from "@/components/ui/ResizeHandle";
+import { useResizableSplit } from "@/components/ui/useResizableSplit";
 import { useSpecBricks, type BrickSortMode, type SpecBricksController } from "../../hooks/useSpecBricks";
 import { METHOD_SHORT_LABEL, type SpecOperation, type SpecPlate } from "../../lib/specBricks";
 import { Brick, METHOD_BRICK_TONES, STUD_PITCH } from "./Brick";
@@ -117,6 +119,14 @@ export const SpecBrickView: FC<SpecBrickViewProps> = ({
 }) => {
 	const b = useSpecBricks(minifiedOutput);
 	const scrollRef = useRef<HTMLDivElement>(null);
+	const inspectorSplit = useResizableSplit({
+		storageKey: "ponie-minifier-inspector-width",
+		cssVar: "--spec-inspector-width",
+		defaultPercent: 36,
+		minPercent: 22,
+		maxPercent: 70,
+		anchor: "end",
+	});
 	const selectedId = b.selectedOp?.id ?? null;
 
 	// Keep the selected brick on screen while stepping with ←/→.
@@ -150,6 +160,8 @@ export const SpecBrickView: FC<SpecBrickViewProps> = ({
 
 	return (
 		<div
+			ref={inspectorSplit.containerRef}
+			style={inspectorSplit.containerStyle}
 			tabIndex={0}
 			onKeyDown={onKeyDown}
 			className={cn(
@@ -250,6 +262,13 @@ export const SpecBrickView: FC<SpecBrickViewProps> = ({
 			</div>
 
 			{b.selectedOp ? (
+				<ResizeHandle
+					{...inspectorSplit.handleProps}
+					label="Resize build instructions"
+					className="relative z-10 -mx-1 hidden w-2 sm:flex"
+				/>
+			) : null}
+			{b.selectedOp ? (
 				<SpecOperationInspector
 					key={b.selectedOp.id}
 					operation={b.selectedOp}
@@ -258,7 +277,7 @@ export const SpecBrickView: FC<SpecBrickViewProps> = ({
 					onStep={b.stepSelection}
 					onClose={() => b.selectOp(null)}
 					onDeselect={onDeselectEndpoint}
-					className="spec-inspector-enter absolute inset-0 z-20 sm:static sm:z-auto sm:w-[min(360px,55%)] sm:shrink-0 sm:border-l sm:border-line"
+					className="spec-inspector-enter absolute inset-0 z-20 sm:static sm:z-auto sm:w-[var(--spec-inspector-width)] sm:min-w-[260px] sm:shrink-0 sm:border-l sm:border-line"
 				/>
 			) : null}
 		</div>

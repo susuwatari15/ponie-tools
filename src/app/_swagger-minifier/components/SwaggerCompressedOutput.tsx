@@ -85,7 +85,7 @@ export const SwaggerCompressedOutput: FC<SwaggerCompressedOutputProps> = ({
   const hasOutput = Boolean(minifiedOutput);
 
   return (
-    <Card flush className="lg:col-span-2 flex min-h-[560px] flex-col overflow-hidden lg:min-h-0">
+    <Card flush className="flex min-h-[560px] flex-col overflow-hidden lg:min-h-0">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
         <div className="min-w-0">
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
