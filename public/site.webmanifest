@@ -1,1 +1,15 @@
-{"name":"","short_name":"","icons":[{"src":"/android-chrome-192x192.png","sizes":"192x192","type":"image/png"},{"src":"/android-chrome-512x512.png","sizes":"512x512","type":"image/png"}],"theme_color":"#ffffff","background_color":"#ffffff","display":"standalone"}
+{
+	"id": "/",
+	"name": "Ponie Tools",
+	"short_name": "Ponie",
+	"description": "Client-side developer tools for OpenAPI specs, permissions and everyday conversions.",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"theme_color": "#F4F6FA",
+	"background_color": "#F4F6FA",
+	"icons": [
+		{ "src": "/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
+		{ "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" }
+	]
+}

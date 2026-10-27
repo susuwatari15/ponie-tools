@@ -176,7 +176,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.action === "ping") {
-    sendResponse({ ok: true, version: chrome.runtime.getManifest().version });
+    const manifest = chrome.runtime.getManifest();
+    sendResponse({
+      ok: true,
+      version: manifest.version,
+      hosts: manifest.host_permissions ?? [],
+    });
     return false;
   }
 

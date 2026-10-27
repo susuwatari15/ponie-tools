@@ -7,12 +7,7 @@ import {
 	useState,
 } from "react";
 import type { EndpointItem, HttpMethod, OpenApiDocument } from "@/types/openapi";
-import {
-	buildEndpointIndex,
-	DEFAULT_MINIFY_OPTIONS,
-	minifySwaggerWithOptions,
-	type MinifyOptions,
-} from "@/lib/swaggerMinifier";
+import { DEFAULT_MINIFY_OPTIONS, type MinifyOptions } from "@/lib/swaggerMinifier";
 import {
 	type EndpointGroupMode,
 	filterEndpointsByQuery,
@@ -43,14 +38,23 @@ import {
 	writeStoredSelections,
 } from "@/lib/swaggerSelectionStorage";
 import { decodeSelection, encodeSelection } from "@/lib/selectionShareCode";
-import { estimateSize } from "@/lib/tokenEstimate";
-import { isExtensionAvailable } from "@/lib/swaggerExtensionBridge";
+import { useOpenApiWorker } from "@/lib/openApiWorkerClient";
+import {
+	indexOpenApiDoc,
+	type MinifiedOutput,
+	minifyOpenApiDoc,
+	shouldRunOffThread,
+} from "@/lib/openApiWorkerTasks";
+import type { SizeEstimate } from "@/lib/tokenEstimate";
+import { useExtensionStatus } from "@/components/layout/ExtensionStatusProvider";
 import { fetchSwaggerForProfile } from "@/lib/swaggerFetch";
 import {
 	addProfile,
 	listProfiles,
+	type ProfileInput,
 	readSelectedProfileId,
 	removeProfile,
+	setSessionPassword,
 	type SwaggerProfile,
 	updateProfile,
 	writeSelectedProfileId,
@@ -62,12 +66,35 @@ export type SwaggerMinifierCopyFormat = "full" | "minified";
 export type SwaggerMinifierSharedLink = {
 	profileId: string | null;
 	selectionCode: string | null;
+	/** `&fetch=1` (command bar → Profiles): load the profile's spec once it is selected. */
+	autoFetch?: boolean;
 };
 
 export type PresetApplyMode = "replace" | "merge";
 
 /** Debounce for persisting the pasted spec, which can be several MB. */
 const RAW_JSON_WRITE_DELAY_MS = 400;
+
+/**
+ * The endpoint index of one parsed spec. `rawJson` is set when the spec is
+ * large enough to live in the worker, and is the text minify requests send.
+ */
+type SpecIndex = {
+	doc: OpenApiDocument | null;
+	endpoints: EndpointItem[];
+	fullSpecSize: SizeEstimate | null;
+	rawJson: string | null;
+};
+
+const EMPTY_INDEX: SpecIndex = { doc: null, endpoints: [], fullSpecSize: null, rawJson: null };
+
+/** A worker minify result and the inputs it was built from. */
+type WorkerMinified = {
+	index: SpecIndex;
+	selectedIds: Set<string>;
+	options: MinifyOptions;
+	result: MinifiedOutput | null;
+};
 
 /**
  * Identity used to remember a selection across reloads: profile + spec title
@@ -97,7 +124,10 @@ export function useSwaggerMinifier(
 	const [inputMode, setInputMode] = useState<"manual" | "url">("manual");
 	const [isFetchingUrl, setIsFetchingUrl] = useState(false);
 	const [urlFetchError, setUrlFetchError] = useState("");
-	const [extensionAvailable, setExtensionAvailable] = useState(false);
+	const extension = useExtensionStatus();
+	const extensionAvailable = extension.available;
+	/** Profile to fetch once hydrated and the extension probe has answered. */
+	const [autoFetchProfileId, setAutoFetchProfileId] = useState<string | null>(null);
 
 	const [profiles, setProfiles] = useState<SwaggerProfile[]>([]);
 	const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -167,6 +197,7 @@ export function useSwaggerMinifier(
 			setCollapsedGroups(new Set(prefs.collapsedGroups));
 			setMinifyOptions(prefs.minifyOptions);
 			setPresets(storedPresets);
+			if (shared?.autoFetch && sharedProfileId) setAutoFetchProfileId(sharedProfileId);
 			storedSelectionsRef.current = selections;
 			if (sharedIds && sharedIds.length > 0) {
 				pendingSharedSelectionRef.current = sharedIds;
@@ -202,31 +233,11 @@ export function useSwaggerMinifier(
 		return () => window.clearTimeout(timer);
 	}, [rawJson, isHydrated]);
 
-	useEffect(() => {
-		let cancelled = false;
-		const probe = async () => {
-			const available = await isExtensionAvailable();
-			if (!cancelled) setExtensionAvailable(available);
-		};
-		probe();
-		window.addEventListener("focus", probe);
-		return () => {
-			cancelled = true;
-			window.removeEventListener("focus", probe);
-		};
-	}, []);
-
 	const selectProfile = (id: string | null) => {
 		setSelectedProfileId(id);
 	};
 
-	const createProfile = async (input: {
-		name: string;
-		color: string;
-		url: string;
-		username: string;
-		password: string;
-	}) => {
+	const createProfile = async (input: ProfileInput) => {
 		const result = await addProfile(input);
 		if (result.ok) {
 			setProfiles(await listProfiles());
@@ -246,6 +257,11 @@ export function useSwaggerMinifier(
 		return result;
 	};
 
+	const setProfileSessionPassword = async (id: string, password: string) => {
+		setSessionPassword(id, password);
+		setProfiles(await listProfiles());
+	};
+
 	const deleteProfile = async (id: string) => {
 		await removeProfile(id);
 		setProfiles(await listProfiles());
@@ -261,10 +277,37 @@ export function useSwaggerMinifier(
 		[deferredRawJson],
 	);
 
-	const allEndpoints = useMemo<EndpointItem[]>(() => {
-		if (!parsed.doc) return [];
-		return buildEndpointIndex(parsed.doc);
-	}, [parsed.doc]);
+	const worker = useOpenApiWorker();
+
+	// Small specs are indexed inline; large ones in the worker (`null` here).
+	const syncIndex = useMemo<SpecIndex | null>(() => {
+		if (!parsed.doc) return EMPTY_INDEX;
+		if (shouldRunOffThread(deferredRawJson.length)) return null;
+		return { doc: parsed.doc, rawJson: null, ...indexOpenApiDoc(parsed.doc) };
+	}, [parsed.doc, deferredRawJson]);
+
+	const [workerIndex, setWorkerIndex] = useState<SpecIndex>(EMPTY_INDEX);
+
+	useEffect(() => {
+		if (syncIndex || !parsed.doc) return;
+		const doc = parsed.doc;
+		const rawJson = deferredRawJson;
+		worker
+			.run("index", { rawJson })
+			.then((result) => {
+				if (result) setWorkerIndex({ doc, rawJson, ...result });
+			})
+			.catch(() => setWorkerIndex({ doc, rawJson: null, ...indexOpenApiDoc(doc) }));
+	}, [syncIndex, parsed.doc, deferredRawJson, worker]);
+
+	// While a large spec is being indexed the previous index stays, so the
+	// endpoint list, spec key and selection all switch to the new spec together.
+	const [lastIndex, setLastIndex] = useState<SpecIndex>(EMPTY_INDEX);
+	const readyIndex = syncIndex ?? (workerIndex.doc === parsed.doc ? workerIndex : null);
+	if (readyIndex && readyIndex !== lastIndex) setLastIndex(readyIndex);
+	const index = readyIndex ?? lastIndex;
+	const isIndexing = readyIndex === null;
+	const allEndpoints = index.endpoints;
 
 	const diagnostics = useMemo(
 		() =>
@@ -285,8 +328,8 @@ export function useSwaggerMinifier(
 	);
 
 	const specKey = useMemo(
-		() => buildSpecKey(parsed.doc, inputMode === "url" ? selectedProfileId : null),
-		[parsed.doc, inputMode, selectedProfileId],
+		() => buildSpecKey(index.doc, inputMode === "url" ? selectedProfileId : null),
+		[index.doc, inputMode, selectedProfileId],
 	);
 
 	useEffect(() => {
@@ -342,32 +385,43 @@ export function useSwaggerMinifier(
 		}
 	}, [allEndpoints, specKey, isHydrated]);
 
-	const minifiedSpec = useMemo(() => {
-		if (!parsed.doc || parsed.error || selectedIds.size === 0) return null;
-		return minifySwaggerWithOptions(Array.from(selectedIds), parsed.doc, minifyOptions);
-	}, [parsed.doc, parsed.error, selectedIds, minifyOptions]);
+	const syncMinified = useMemo(() => {
+		if (!index.doc || index.rawJson !== null || selectedIds.size === 0) return null;
+		return minifyOpenApiDoc(index.doc, Array.from(selectedIds), minifyOptions);
+	}, [index, selectedIds, minifyOptions]);
 
-	const minifiedOutput = useMemo(
-		() => (minifiedSpec ? JSON.stringify(minifiedSpec, null, 2) : ""),
-		[minifiedSpec],
-	);
+	const [workerMinified, setWorkerMinified] = useState<WorkerMinified | null>(null);
 
+	useEffect(() => {
+		if (index.rawJson === null || selectedIds.size === 0) return;
+		const request = { index, selectedIds, options: minifyOptions };
+		worker
+			.run("minify", {
+				rawJson: index.rawJson,
+				endpointIds: Array.from(selectedIds),
+				options: minifyOptions,
+			})
+			.then((result) => {
+				if (result) setWorkerMinified({ ...request, result });
+			})
+			.catch(() => setWorkerMinified({ ...request, result: null }));
+	}, [index, selectedIds, minifyOptions, worker]);
+
+	// A worker result is shown until the next one lands, rather than blanking the output.
+	const usesWorker = index.rawJson !== null && selectedIds.size > 0;
+	const minified = usesWorker ? (workerMinified?.result ?? null) : syncMinified;
+	const isMinifying =
+		usesWorker &&
+		(workerMinified?.index !== index ||
+			workerMinified.selectedIds !== selectedIds ||
+			workerMinified.options !== minifyOptions);
+
+	const minifiedOutput = minified?.output ?? "";
 	/** Single-line JSON — what "Copy Minified" puts on the clipboard. */
-	const minifiedCompact = useMemo(
-		() => (minifiedSpec ? JSON.stringify(minifiedSpec) : ""),
-		[minifiedSpec],
-	);
-
-	const outputSize = useMemo(
-		() => (minifiedCompact ? estimateSize(minifiedCompact) : null),
-		[minifiedCompact],
-	);
-
+	const minifiedCompact = minified?.compact ?? "";
+	const outputSize = minified?.size ?? null;
 	// Measured compact too, so it compares like-for-like with the output.
-	const fullSpecSize = useMemo(
-		() => (parsed.doc ? estimateSize(JSON.stringify(parsed.doc)) : null),
-		[parsed.doc],
-	);
+	const fullSpecSize = index.fullSpecSize;
 
 	const selectedCount = selectedIds.size;
 	const visibleAllSelected =
@@ -539,21 +593,41 @@ export function useSwaggerMinifier(
 
 	const clearPendingProfileUrl = () => setPendingProfileUrl(null);
 
-	const onFetchFromUrl = async () => {
-		if (!selectedProfile || !selectedProfile.url.trim()) {
+	const fetchProfile = async (profile: SwaggerProfile | null) => {
+		if (!profile || !profile.url.trim()) {
 			setUrlFetchError("Select a profile with a Swagger URL first.");
 			return;
 		}
 
 		setUrlFetchError("");
 		setIsFetchingUrl(true);
-		const result = await fetchSwaggerForProfile(selectedProfile, extensionAvailable);
+		const result = await fetchSwaggerForProfile(profile, extensionAvailable);
 		if (result.ok) setRawJson(result.rawJson);
 		else setUrlFetchError(result.error);
 		setIsFetchingUrl(false);
 	};
 
+	const onFetchFromUrl = () => fetchProfile(selectedProfile);
+
+	/** Command bar: switch to URL mode on `id` and load its spec. */
+	const selectAndFetchProfile = (id: string) => {
+		const profile = profiles.find((item) => item.id === id) ?? null;
+		setInputMode("url");
+		setSelectedProfileId(id);
+		void fetchProfile(profile);
+	};
+
+	useEffect(() => {
+		if (!autoFetchProfileId || extension.status === "checking") return;
+		if (selectedProfile?.id !== autoFetchProfileId) return;
+		setAutoFetchProfileId(null);
+		// fetchProfile is recreated every render (not a dep); the guards make this run once.
+		void fetchProfile(selectedProfile);
+	}, [autoFetchProfileId, extension.status, selectedProfile]);
+
 	return {
+		/** False until persisted state has been read from IndexedDB. */
+		isHydrated,
 		rawJson,
 		setRawJson,
 		searchQuery,
@@ -567,16 +641,21 @@ export function useSwaggerMinifier(
 		isFetchingUrl,
 		urlFetchError,
 		extensionAvailable,
+		extensionHosts: extension.info?.hosts ?? null,
 		profiles,
 		selectedProfile,
 		selectProfile,
 		createProfile,
 		editProfile,
 		deleteProfile,
+		setProfileSessionPassword,
+		selectAndFetchProfile,
 		pendingProfileUrl,
 		clearPendingProfileUrl,
 		parsed,
 		diagnostics,
+		/** A large spec is being indexed in the worker; the previous index is still shown. */
+		isIndexing,
 		allEndpoints,
 		filteredEndpoints,
 		endpointGroups,
@@ -589,6 +668,8 @@ export function useSwaggerMinifier(
 		setMinifyOptions,
 		minifiedOutput,
 		minifiedCompact,
+		/** The worker is building output for the current selection; the last output is still shown. */
+		isMinifying,
 		outputSize,
 		fullSpecSize,
 		selectedCount,

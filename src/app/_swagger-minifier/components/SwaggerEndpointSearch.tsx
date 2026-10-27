@@ -93,7 +93,7 @@ export const SwaggerEndpointSearch: FC<SwaggerEndpointSearchProps> = ({
 						type="button"
 						onClick={onDismissSharedSelection}
 						aria-label="Dismiss shared selection"
-						className="rounded p-0.5 text-muted transition hover:text-fg"
+						className="rounded p-0.5 text-muted transition hover:text-fg pointer-coarse:p-2"
 					>
 						<X className="h-3.5 w-3.5" />
 					</button>
@@ -134,7 +134,7 @@ export const SwaggerEndpointSearch: FC<SwaggerEndpointSearchProps> = ({
 								onClick={() => onToggleMethod(method)}
 								aria-pressed={isActive}
 								className={cn(
-									"rounded-md px-2 py-0.5 font-mono text-xs font-semibold uppercase tracking-wide transition",
+									"rounded-md px-2 py-0.5 font-mono text-xs font-semibold uppercase tracking-wide transition pointer-coarse:min-h-10",
 									isActive ? style.solid : style.chip,
 								)}
 							>
@@ -155,7 +155,7 @@ export const SwaggerEndpointSearch: FC<SwaggerEndpointSearchProps> = ({
 								type="button"
 								onClick={() => onSearchQueryChange(isActive ? "" : prefix)}
 								className={cn(
-									"rounded-md px-2 py-0.5 font-mono text-xs transition",
+									"rounded-md px-2 py-0.5 font-mono text-xs transition pointer-coarse:min-h-10",
 									isActive
 										? "bg-accent text-white"
 										: "bg-raised text-muted hover:text-fg",
@@ -186,7 +186,7 @@ export const SwaggerEndpointSearch: FC<SwaggerEndpointSearchProps> = ({
 									aria-checked={active}
 									onClick={() => onGroupModeChange(value)}
 									className={cn(
-										"rounded px-2 py-0.5 text-[11px] font-medium transition",
+										"rounded px-2 py-0.5 text-[11px] font-medium transition pointer-coarse:min-h-10",
 										active ? "bg-surface text-fg shadow-sm" : "text-muted hover:text-fg",
 									)}
 								>

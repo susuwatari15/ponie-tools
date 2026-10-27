@@ -18,7 +18,7 @@ export type SavedSnapshot = {
 	profileColor?: string;
 };
 
-function isSnapshot(item: unknown): item is SavedSnapshot {
+export function isSnapshot(item: unknown): item is SavedSnapshot {
 	return (
 		typeof item === "object" &&
 		item !== null &&

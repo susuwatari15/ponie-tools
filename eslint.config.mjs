@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import tsPlugin from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
+import eslintConfigPrettier from "eslint-config-prettier/flat";
 import globals from "globals";
 
 export default [
@@ -29,6 +30,8 @@ export default [
 			"@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
 		},
 	},
+	// Last, so it switches off any stylistic rule that would fight Prettier.
+	eslintConfigPrettier,
 	{
 		ignores: [".next/", "node_modules/"],
 	},

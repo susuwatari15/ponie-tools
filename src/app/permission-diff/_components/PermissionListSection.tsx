@@ -6,7 +6,7 @@ import { ToolbarLabel } from "@/components/ui/Toolbar";
 import type { PermissionCopyFormat } from "../_lib/formatPermissionShortList";
 import { matchesSearch } from "../_lib/permissionDisplay";
 import type { PermissionEntry, SectionId } from "../types";
-import { PermissionPill } from "./PermissionPill";
+import { PermissionPillList } from "./PermissionPill";
 
 type CopyHandler = (
 	id: SectionId,
@@ -76,13 +76,7 @@ export const PermissionListSection: FC<PermissionListSectionProps> = ({
 			{filteredItems.length === 0 ? (
 				<p className="text-sm text-muted">{emptyMessage}</p>
 			) : (
-				<ul className="flex flex-wrap gap-2">
-					{filteredItems.map((entry) => (
-						<li key={entry.canonical}>
-							<PermissionPill entry={entry} />
-						</li>
-					))}
-				</ul>
+				<PermissionPillList items={filteredItems} />
 			)}
 		</Collapsible>
 	);

@@ -6,7 +6,8 @@ import { Button } from "./Button";
 import { cn } from "./cn";
 import { IconButton } from "./IconButton";
 import { Input } from "./Input";
-import { useToast } from "./ToastProvider";
+import { JSON_TOKEN_CLASS as TOKEN_CLASS } from "./jsonTokenColors";
+import { useCopy } from "./useCopy";
 
 type JsonValue = unknown;
 
@@ -17,15 +18,6 @@ type JsonTreeProps = {
 	defaultExpandDepth?: number;
 	className?: string;
 };
-
-/** Theme-aware token colors — kept in sync with `JsonView`. */
-const TOKEN_CLASS = {
-	key: "text-sky-600 dark:text-sky-300",
-	string: "text-emerald-600 dark:text-emerald-300",
-	number: "text-amber-600 dark:text-amber-300",
-	boolean: "text-fuchsia-600 dark:text-fuchsia-300",
-	null: "text-rose-500 dark:text-rose-300",
-} as const;
 
 const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
 const MAX_STRING_PREVIEW = 160;
@@ -215,9 +207,12 @@ const TreeNode: FC<{
 	);
 };
 
-/** Interactive, searchable JSON explorer with collapsible nodes and copyable paths. */
+/**
+ * Interactive, searchable JSON explorer with collapsible nodes and copyable
+ * paths — the one tree used by the minifier output and the JSON Formatter.
+ */
 export const JsonTree: FC<JsonTreeProps> = ({ value, defaultExpandDepth = 3, className }) => {
-	const { toast } = useToast();
+	const copyToClipboard = useCopy();
 	const [baseDepth, setBaseDepth] = useState(defaultExpandDepth);
 	// Per-node choices layered over the depth rule; cleared by expand/collapse all.
 	const [overrides, setOverrides] = useState<Map<string, boolean>>(new Map());
@@ -245,14 +240,8 @@ export const JsonTree: FC<JsonTreeProps> = ({ value, defaultExpandDepth = 3, cla
 		setOverrides(new Map());
 	};
 
-	const copy = async (label: string, text: string) => {
-		try {
-			await navigator.clipboard.writeText(text);
-			toast(`${label} copied to clipboard`, "success");
-		} catch {
-			toast("Couldn't access the clipboard", "error");
-		}
-	};
+	const copy = (label: string, text: string) =>
+		copyToClipboard(text, `${label} copied to clipboard`);
 
 	const ctx: TreeContext = {
 		query,

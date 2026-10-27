@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss';
+import plugin from 'tailwindcss/plugin';
 
 const config: Config = {
   content: [
@@ -38,7 +39,12 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // `pointer-coarse:` targets touch screens, where controls get >= 40px hit areas.
+    plugin(({ addVariant }) => {
+      addVariant('pointer-coarse', '@media (pointer: coarse)');
+    }),
+  ],
 };
 
 export default config;

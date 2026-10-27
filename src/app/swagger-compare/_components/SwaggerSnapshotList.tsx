@@ -6,6 +6,7 @@ import { cn } from "@/components/ui/cn";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { IconButton } from "@/components/ui/IconButton";
 import { Input } from "@/components/ui/Input";
+import { Skeleton, SkeletonGroup } from "@/components/ui/Skeleton";
 import type { SavedSnapshot } from "@/lib/swaggerSavedSnapshotsStorage";
 import { formatSize } from "../_lib/formatSize";
 import type { StorageEstimate, SwaggerCompareController } from "../_hooks/useSwaggerCompare";
@@ -17,7 +18,7 @@ const STORAGE_WARN_RATIO = 0.8;
 const CONFIRM_TIMEOUT_MS = 4_000;
 
 const sideButton =
-	"inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-md border px-2 font-mono text-xs font-semibold transition";
+	"inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-md border px-2 font-mono text-xs font-semibold transition pointer-coarse:min-h-10 pointer-coarse:min-w-10";
 
 const checkbox = "h-3.5 w-3.5 shrink-0 rounded border-line text-accent focus:ring-accent";
 
@@ -109,7 +110,7 @@ const SnapshotRow: FC<SnapshotRowProps> = ({ snap, m, checked, onToggleChecked }
 							type="button"
 							onClick={() => setDraft(snap.name)}
 							aria-label={`Rename ${snap.name}`}
-							className="shrink-0 rounded p-0.5 text-muted opacity-0 transition hover:text-fg focus-visible:opacity-100 group-hover:opacity-100"
+							className="shrink-0 rounded p-0.5 text-muted opacity-0 transition hover:text-fg focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100"
 						>
 							<Pencil className="h-3 w-3" />
 						</button>
@@ -298,6 +299,17 @@ export const SwaggerSnapshotList: FC<{ m: SwaggerCompareController }> = ({ m }) 
 		setChecked(new Set());
 		void m.deleteSnapshots(checkedIds);
 	};
+
+	if (!m.snapshotsLoaded) {
+		return (
+			<SkeletonGroup label="Loading snapshots" className="flex flex-col gap-2">
+				<Skeleton className="h-8 w-full rounded-lg" />
+				{Array.from({ length: 4 }, (_, index) => (
+					<Skeleton key={index} className="h-[5.5rem] w-full rounded-card" />
+				))}
+			</SkeletonGroup>
+		);
+	}
 
 	if (snapshots.length === 0) {
 		return (

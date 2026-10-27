@@ -18,8 +18,8 @@ const variants: Record<ButtonVariant, string> = {
 };
 
 const sizes: Record<ButtonSize, string> = {
-	sm: "px-2.5 py-1.5 text-xs",
-	md: "px-3.5 py-2 text-sm",
+	sm: "px-2.5 py-1.5 text-xs pointer-coarse:min-h-10",
+	md: "px-3.5 py-2 text-sm pointer-coarse:min-h-10",
 };
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {

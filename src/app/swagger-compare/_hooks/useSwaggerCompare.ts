@@ -1,7 +1,9 @@
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useExtensionStatus } from "@/components/layout/ExtensionStatusProvider";
 import { useToast } from "@/components/ui/ToastProvider";
+import { copyText } from "@/lib/clipboard";
 import { downloadTextFile, toFileSlug } from "@/lib/downloadFile";
 import {
 	buildEndpointsClipboardText,
@@ -10,7 +12,8 @@ import {
 	type OpenApiCompareResult,
 	type SwaggerCopyFormat,
 } from "@/lib/openApiCompare";
-import { isExtensionAvailable } from "@/lib/swaggerExtensionBridge";
+import { useOpenApiWorker } from "@/lib/openApiWorkerClient";
+import { shouldRunOffThread } from "@/lib/openApiWorkerTasks";
 import { fetchSwaggerForProfile } from "@/lib/swaggerFetch";
 import { listProfiles, type SwaggerProfile } from "@/lib/swaggerProfilesStorage";
 import { readStoredRawJson, writeRawJsonToStorage } from "@/lib/swaggerRawJsonStorage";
@@ -68,10 +71,13 @@ const toggleIn = <T>(list: T[], value: T): T[] =>
 export function useSwaggerCompare(init: UseSwaggerCompareInit) {
 	const router = useRouter();
 	const { toast } = useToast();
+	const worker = useOpenApiWorker();
 
 	const [snapshots, setSnapshots] = useState<SavedSnapshot[]>([]);
+	/** False until the first IndexedDB read lands — the list shows a skeleton meanwhile. */
+	const [snapshotsLoaded, setSnapshotsLoaded] = useState(false);
 	const [profiles, setProfiles] = useState<SwaggerProfile[]>([]);
-	const [extensionAvailable, setExtensionAvailable] = useState(false);
+	const extensionAvailable = useExtensionStatus().available;
 	/** Size of the Minifier's current spec text; null when it has none. */
 	const [minifierSize, setMinifierSize] = useState<number | null>(null);
 	const [storageEstimate, setStorageEstimate] = useState<StorageEstimate | null>(null);
@@ -106,22 +112,21 @@ export function useSwaggerCompare(init: UseSwaggerCompareInit) {
 		return list;
 	}, [refreshStorageEstimate]);
 
-	// Profiles, the Minifier's draft and the extension can all change in another
-	// tab, so they are re-read whenever the window regains focus.
+	// Profiles and the Minifier's draft can change in another tab, so they are
+	// re-read whenever the window regains focus (the shell re-probes the extension).
 	useEffect(() => {
 		let cancelled = false;
 		const load = async () => {
-			const [list, storedProfiles, rawJson, available] = await Promise.all([
+			const [list, storedProfiles, rawJson] = await Promise.all([
 				listSnapshots(),
 				listProfiles(),
 				readStoredRawJson(),
-				isExtensionAvailable(),
 			]);
 			if (cancelled) return;
 			setSnapshots(list);
+			setSnapshotsLoaded(true);
 			setProfiles(storedProfiles);
 			setMinifierSize(rawJson?.trim() ? rawJson.length : null);
-			setExtensionAvailable(available);
 			refreshStorageEstimate();
 		};
 		void load();
@@ -250,6 +255,26 @@ export function useSwaggerCompare(init: UseSwaggerCompareInit) {
 		}
 	};
 
+	/**
+	 * Large pairs are diffed in the worker; small ones inline, after a paint so
+	 * the busy state shows. `null` means a newer compare superseded this one.
+	 */
+	const diffSides = async (
+		a: ResolvedSide,
+		b: ResolvedSide,
+	): Promise<OpenApiCompareResult | null> => {
+		const request = { rawA: a.rawJson, rawB: b.rawJson, labelA: a.label, labelB: b.label };
+		if (!shouldRunOffThread(a.rawJson.length + b.rawJson.length)) {
+			await afterPaint();
+			return compareOpenApiRawJson(request.rawA, request.rawB, request);
+		}
+		try {
+			return await worker.run("compare", request);
+		} catch (error) {
+			return { ok: false, error: error instanceof Error ? error.message : "Comparison failed." };
+		}
+	};
+
 	const canCompare =
 		isSideReady(sideA) &&
 		isSideReady(sideB) &&
@@ -270,23 +295,23 @@ export function useSwaggerCompare(init: UseSwaggerCompareInit) {
 		const run = compareRun.current;
 		setComparing(true);
 		const [outA, outB] = await Promise.all([resolveSide(a, "a"), resolveSide(b, "b")]);
-		await afterPaint();
 		if (run !== compareRun.current) return;
 
-		setComparing(false);
 		if (!outA.ok) {
+			setComparing(false);
 			setCompareResult({ ok: false, error: outA.error, side: "a" });
 			return;
 		}
 		if (!outB.ok) {
+			setComparing(false);
 			setCompareResult({ ok: false, error: outB.error, side: "b" });
 			return;
 		}
 
-		const result = compareOpenApiRawJson(outA.side.rawJson, outB.side.rawJson, {
-			labelA: outA.side.label,
-			labelB: outB.side.label,
-		});
+		const result = await diffSides(outA.side, outB.side);
+		if (result === null || run !== compareRun.current) return;
+
+		setComparing(false);
 		setCompareResult(result);
 		setResolved(result.ok ? { a: outA.side, b: outB.side } : null);
 		setSelectedIds(
@@ -459,7 +484,7 @@ export function useSwaggerCompare(init: UseSwaggerCompareInit) {
 			return;
 		}
 		try {
-			await navigator.clipboard.writeText(text);
+			await copyText(text);
 			toast(
 				`${selectedShownIds.length} endpoint${selectedShownIds.length === 1 ? "" : "s"} copied (${fmt})`,
 				"success",
@@ -505,7 +530,7 @@ export function useSwaggerCompare(init: UseSwaggerCompareInit) {
 			return;
 		}
 		try {
-			await navigator.clipboard.writeText(markdown);
+			await copyText(markdown);
 			toast(filtering ? "Markdown copied (filtered view)" : "Markdown copied", "success");
 		} catch {
 			toast("Couldn't access the clipboard", "error");
@@ -515,6 +540,7 @@ export function useSwaggerCompare(init: UseSwaggerCompareInit) {
 	return {
 		// sources
 		snapshots,
+		snapshotsLoaded,
 		profiles,
 		extensionAvailable,
 		minifierSize,

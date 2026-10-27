@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useToast } from "@/components/ui";
-import { copyText } from "../_lib/copyToClipboard";
+import { useCopy } from "@/components/ui";
 import {
 	type DateParts,
 	type EpochUnit,
@@ -76,7 +75,7 @@ const EMPTY_PARTS: DateParts = {
 };
 
 export function useEpochConverter(): UseEpochConverter {
-	const { toast } = useToast();
+	const copyToClipboard = useCopy();
 
 	// --- Live counter -------------------------------------------------------
 	const [nowMs, setNowMs] = useState<number | null>(null);
@@ -175,11 +174,9 @@ export function useEpochConverter(): UseEpochConverter {
 	const copy = useCallback(
 		(value: string, note?: string) => {
 			if (value.trim() === "") return;
-			void copyText(value)
-				.then(() => toast(note ?? `Copied ${value}`))
-				.catch(() => toast("Failed to copy", "error"));
+			void copyToClipboard(value, note ?? `Copied ${value}`);
 		},
-		[toast],
+		[copyToClipboard],
 	);
 
 	return {

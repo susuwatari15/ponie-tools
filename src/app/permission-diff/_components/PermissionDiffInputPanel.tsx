@@ -2,9 +2,11 @@ import { FlaskConical, GitCompare } from "lucide-react";
 import type { FC } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { cn } from "@/components/ui/cn";
 import { Textarea } from "@/components/ui/Textarea";
 
 type PermissionDiffInputPanelProps = {
+	className?: string;
 	group1RawJson: string;
 	group2RawJson: string;
 	error: string | null;
@@ -17,6 +19,7 @@ type PermissionDiffInputPanelProps = {
 const labelClass = "font-mono text-[10px] uppercase tracking-widest text-muted";
 
 export const PermissionDiffInputPanel: FC<PermissionDiffInputPanelProps> = ({
+	className,
 	group1RawJson,
 	group2RawJson,
 	error,
@@ -26,7 +29,7 @@ export const PermissionDiffInputPanel: FC<PermissionDiffInputPanelProps> = ({
 	onLoadSample,
 }) => {
 	return (
-		<Card className="h-fit space-y-3">
+		<Card className={cn("h-fit space-y-3", className)}>
 			<p className="font-mono text-[10px] uppercase tracking-widest text-muted">
 				// input
 			</p>

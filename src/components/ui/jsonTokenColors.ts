@@ -1,9 +1,9 @@
 /**
- * Theme-aware token colors for the JSON tree — mirrors the private palette in
- * `@/components/ui/JsonView` so the tree and highlighted text stay consistent.
- * Each entry needs a light and a dark variant.
+ * Theme-aware JSON token colors shared by `JsonView` (highlighted text) and
+ * `JsonTree` (explorer) so both read the same. Each needs a light and a dark
+ * variant.
  */
-export const TOKEN_CLASS = {
+export const JSON_TOKEN_CLASS = {
 	key: "text-sky-600 dark:text-sky-300",
 	string: "text-emerald-600 dark:text-emerald-300",
 	number: "text-amber-600 dark:text-amber-300",

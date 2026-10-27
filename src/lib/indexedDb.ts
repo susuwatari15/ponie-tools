@@ -8,7 +8,8 @@
  *    snapshot's full swagger text, read only when it is compared or loaded.
  *  - object store "keyval" (out-of-line keys) — small values: the profiles
  *    array, the current raw-json draft, the selected-profile id, and the
- *    minifier's UI prefs, per-spec endpoint selections and selection presets.
+ *    minifier's UI prefs, per-spec endpoint selections, selection presets and
+ *    the last visited tool.
  *
  * On first open we migrate the legacy localStorage keys into these stores and
  * then remove them, so existing users keep their data. v1 kept the spec text
@@ -29,6 +30,7 @@ export const RAW_JSON_KEY = "raw-json";
 export const MINIFIER_PREFS_KEY = "minifier-prefs";
 export const MINIFIER_SELECTIONS_KEY = "minifier-selections";
 export const SELECTION_PRESETS_KEY = "selection-presets";
+export const LAST_TOOL_KEY = "last-tool";
 
 /** Legacy localStorage keys migrated once on first open. */
 const LEGACY_PROFILES_KEY = "swagger-minifier-profiles";

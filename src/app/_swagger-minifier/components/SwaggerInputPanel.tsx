@@ -2,6 +2,8 @@ import type { FC } from "react";
 import { GitCompare } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { cn } from "@/components/ui/cn";
+import { Skeleton, SkeletonGroup } from "@/components/ui/Skeleton";
 import { SwaggerDiagnosticsPanel } from "@/components/swagger/SwaggerDiagnosticsPanel";
 import type { SwaggerMinifierController } from "../hooks/useSwaggerMinifier";
 import { SwaggerEndpointList } from "./SwaggerEndpointList";
@@ -14,16 +16,40 @@ import { SwaggerUrlFetchForm } from "./SwaggerUrlFetchForm";
 
 type SwaggerInputPanelProps = {
 	m: SwaggerMinifierController;
+	className?: string;
 	onSnapshotSaved?: () => void;
 	onNavigateToCompareLatest?: () => void;
 };
 
+const panelClass = "flex min-h-[560px] max-h-full flex-col overflow-auto lg:min-h-0";
+
+/** Stands in for the input + endpoint list while IndexedDB hydrates. */
+const InputPanelSkeleton: FC<{ className?: string }> = ({ className }) => (
+	<Card flush className={cn(panelClass, className)}>
+		<SkeletonGroup label="Loading saved spec" className="flex flex-col gap-3 p-4">
+			<Skeleton className="h-3 w-12" />
+			<Skeleton className="h-8 w-56 max-w-full rounded-lg" />
+			<Skeleton className="h-40 w-full rounded-lg" />
+			<Skeleton className="h-4 w-40" />
+			<div className="mt-3 space-y-2 border-t border-line pt-4">
+				<Skeleton className="h-9 w-full rounded-lg" />
+				{Array.from({ length: 6 }, (_, index) => (
+					<Skeleton key={index} className="h-10 w-full rounded-lg" />
+				))}
+			</div>
+		</SkeletonGroup>
+	</Card>
+);
+
 export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 	m,
+	className,
 	onSnapshotSaved,
 	onNavigateToCompareLatest,
-}) => (
-	<Card flush className="flex min-h-[560px] flex-col overflow-auto max-h-full lg:min-h-0">
+}) => !m.isHydrated ? (
+	<InputPanelSkeleton className={className} />
+) : (
+	<Card flush className={cn(panelClass, className)}>
 		<div className="border-b border-line p-4">
 			<p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted">
 				// input
@@ -44,6 +70,7 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 					isFetchingUrl={m.isFetchingUrl}
 					urlFetchError={m.urlFetchError}
 					extensionAvailable={m.extensionAvailable}
+					extensionHosts={m.extensionHosts}
 					onFetchFromUrl={m.onFetchFromUrl}
 					rawJson={m.rawJson}
 					onSnapshotSaved={onSnapshotSaved}
@@ -55,12 +82,14 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 					onDeleteProfile={m.deleteProfile}
 					pendingProfileUrl={m.pendingProfileUrl}
 					onClearPendingProfileUrl={m.clearPendingProfileUrl}
+					onSetSessionPassword={m.setProfileSessionPassword}
 				/>
 			)}
 
 			<SwaggerParseStatus
 				error={m.parsed.error}
 				endpointCount={m.allEndpoints.length}
+				indexing={m.isIndexing}
 				hasDoc={Boolean(m.parsed.doc)}
 				diagnostics={m.diagnostics}
 				fullSpecSize={m.fullSpecSize}

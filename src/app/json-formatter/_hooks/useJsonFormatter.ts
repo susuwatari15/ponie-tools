@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useToast } from "@/components/ui";
-import { copyText } from "../_lib/copyToClipboard";
+import { useCopy } from "@/components/ui";
 import { beautify, minify, parseJson, type JsonError } from "../_lib/format";
 
 export type ViewMode = "beautify" | "tree" | "minify";
@@ -28,7 +27,7 @@ export type UseJsonFormatter = {
 };
 
 export function useJsonFormatter(): UseJsonFormatter {
-	const { toast } = useToast();
+	const copyToClipboard = useCopy();
 
 	const [input, setInput] = useState("");
 	const [mode, setMode] = useState<ViewMode>("beautify");
@@ -57,17 +56,13 @@ export function useJsonFormatter(): UseJsonFormatter {
 	const copy = useCallback(() => {
 		const text = mode === "minify" ? minified : beautified;
 		if (text.trim() === "") return;
-		void copyText(text)
-			.then(() =>
-				toast(
-					mode === "minify"
-						? "Minified JSON copied to clipboard"
-						: "Formatted JSON copied to clipboard",
-					"success",
-				),
-			)
-			.catch(() => toast("Couldn't access the clipboard", "error"));
-	}, [mode, minified, beautified, toast]);
+		void copyToClipboard(
+			text,
+			mode === "minify"
+				? "Minified JSON copied to clipboard"
+				: "Formatted JSON copied to clipboard",
+		);
+	}, [mode, minified, beautified, copyToClipboard]);
 
 	return {
 		input,

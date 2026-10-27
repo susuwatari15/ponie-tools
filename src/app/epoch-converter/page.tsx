@@ -4,9 +4,11 @@ import type { FC } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EpochConverter } from "./_components/EpochConverter";
 import { useEpochConverter } from "./_hooks/useEpochConverter";
+import { useEpochConverterCommands } from "./_hooks/useEpochConverterCommands";
 
 const EpochConverterPage: FC = () => {
 	const m = useEpochConverter();
+	useEpochConverterCommands(m);
 
 	return (
 		<div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 sm:p-6">

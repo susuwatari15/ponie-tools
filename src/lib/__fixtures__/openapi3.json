@@ -1,0 +1,191 @@
+{
+	"openapi": "3.0.3",
+	"info": { "title": "Pet Store", "version": "1.0.0" },
+	"security": [{ "bearerAuth": [] }],
+	"paths": {
+		"/pets": {
+			"get": {
+				"summary": "List pets",
+				"operationId": "listPets",
+				"tags": ["pets"],
+				"parameters": [
+					{
+						"name": "limit",
+						"in": "query",
+						"description": "Max items",
+						"schema": { "type": "integer", "minimum": 1, "maximum": 100 }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "array",
+									"items": { "$ref": "#/components/schemas/Pet" }
+								}
+							}
+						}
+					}
+				}
+			},
+			"post": {
+				"summary": "Create pet",
+				"description": "Adds a pet to the store.",
+				"tags": ["pets"],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": { "$ref": "#/components/schemas/NewPet" }
+						}
+					}
+				},
+				"responses": {
+					"201": {
+						"description": "Created",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/Pet" }
+							}
+						}
+					},
+					"400": {
+						"description": "Bad request",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/Error" }
+							}
+						}
+					}
+				}
+			}
+		},
+		"/pets/{petId}": {
+			"parameters": [
+				{
+					"name": "petId",
+					"in": "path",
+					"required": true,
+					"schema": { "type": "string" }
+				}
+			],
+			"get": {
+				"summary": "Get pet",
+				"tags": ["pets"],
+				"responses": {
+					"404": {
+						"description": "Not found",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/Error" }
+							}
+						}
+					},
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": { "$ref": "#/components/schemas/Pet" }
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"summary": "Delete pet",
+				"tags": ["pets", "admin"],
+				"deprecated": true,
+				"security": [{ "apiKey": [] }],
+				"responses": { "204": { "description": "Deleted" } }
+			}
+		},
+		"/stores/{storeId}/inventory": {
+			"get": {
+				"summary": "Store inventory",
+				"parameters": [
+					{
+						"name": "storeId",
+						"in": "path",
+						"required": true,
+						"schema": { "type": "string" }
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"additionalProperties": { "type": "integer" }
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/health": {
+			"get": {
+				"responses": { "200": { "description": "OK" } }
+			}
+		}
+	},
+	"components": {
+		"schemas": {
+			"Pet": {
+				"type": "object",
+				"required": ["id", "name"],
+				"properties": {
+					"id": { "type": "string", "format": "uuid" },
+					"name": { "type": "string", "description": "Pet name", "example": "Rex" },
+					"owner": { "$ref": "#/components/schemas/Owner" },
+					"category": { "$ref": "#/components/schemas/Category" },
+					"legacyCode": { "type": "string", "deprecated": true }
+				}
+			},
+			"Owner": {
+				"type": "object",
+				"properties": {
+					"name": { "type": "string" },
+					"address": { "$ref": "#/components/schemas/Address" }
+				}
+			},
+			"Address": {
+				"type": "object",
+				"properties": {
+					"city": { "type": "string" },
+					"description": { "type": "string", "description": "Free-form note" }
+				}
+			},
+			"Category": {
+				"type": "object",
+				"properties": {
+					"name": { "type": "string" },
+					"parent": { "$ref": "#/components/schemas/Category" }
+				}
+			},
+			"NewPet": {
+				"type": "object",
+				"required": ["name"],
+				"properties": {
+					"name": { "type": "string" },
+					"kind": { "type": "string", "enum": ["dog", "cat"] }
+				}
+			},
+			"Error": {
+				"type": "object",
+				"properties": {
+					"code": { "type": "integer" },
+					"message": { "type": "string" }
+				}
+			},
+			"Unused": { "type": "string" }
+		},
+		"securitySchemes": {
+			"bearerAuth": { "type": "http", "scheme": "bearer", "description": "JWT access token" },
+			"apiKey": { "type": "apiKey", "in": "header", "name": "X-API-Key" }
+		}
+	}
+}

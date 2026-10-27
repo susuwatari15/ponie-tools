@@ -1,0 +1,53 @@
+{
+	"swagger": "2.0",
+	"info": { "title": "Legacy Users", "version": "2.1" },
+	"securityDefinitions": {
+		"basic": { "type": "basic", "description": "HTTP basic" }
+	},
+	"paths": {
+		"/users/{id}": {
+			"get": {
+				"summary": "Get user",
+				"tags": ["users"],
+				"produces": ["application/json"],
+				"parameters": [
+					{ "name": "id", "in": "path", "required": true, "type": "integer", "format": "int64" },
+					{ "name": "fields", "in": "query", "type": "array", "items": { "type": "string" } },
+					{ "name": "X-Trace", "in": "header" }
+				],
+				"responses": {
+					"200": { "description": "OK", "schema": { "$ref": "#/definitions/User" } }
+				},
+				"security": [{ "basic": [] }]
+			}
+		},
+		"/users": {
+			"post": {
+				"summary": "Create user",
+				"tags": ["users"],
+				"parameters": [
+					{
+						"name": "body",
+						"in": "body",
+						"required": true,
+						"schema": { "$ref": "#/definitions/User" }
+					}
+				],
+				"responses": {
+					"201": { "description": "Created", "schema": { "$ref": "#/definitions/User" } }
+				}
+			}
+		}
+	},
+	"definitions": {
+		"User": {
+			"type": "object",
+			"required": ["id"],
+			"properties": {
+				"id": { "type": "integer" },
+				"roles": { "type": "array", "items": { "$ref": "#/definitions/Role" } }
+			}
+		},
+		"Role": { "type": "string", "enum": ["admin", "member"] }
+	}
+}

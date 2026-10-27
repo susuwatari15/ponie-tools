@@ -28,7 +28,7 @@ export const IconButton: FC<IconButtonProps> = ({
 		aria-label={label}
 		title={label}
 		className={cn(
-			"inline-flex h-8 w-8 items-center justify-center rounded-lg border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-45",
+			"inline-flex h-8 w-8 items-center justify-center rounded-lg border transition pointer-coarse:min-h-10 pointer-coarse:min-w-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-45",
 			tones[tone],
 			className,
 		)}

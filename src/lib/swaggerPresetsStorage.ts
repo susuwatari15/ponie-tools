@@ -18,7 +18,7 @@ export type SelectionPreset = {
 	createdAt: number;
 };
 
-function isPreset(item: unknown): item is SelectionPreset {
+export function isPreset(item: unknown): item is SelectionPreset {
 	return (
 		typeof item === "object" &&
 		item !== null &&

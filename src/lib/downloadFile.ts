@@ -1,6 +1,11 @@
 /** Saves `text` as a file through a temporary object URL. */
 export function downloadTextFile(fileName: string, text: string, type = "text/plain"): void {
-	const url = URL.createObjectURL(new Blob([text], { type: `${type};charset=utf-8` }));
+	downloadBlob(fileName, new Blob([text], { type: `${type};charset=utf-8` }));
+}
+
+/** Saves a blob as a file through a temporary object URL. */
+export function downloadBlob(fileName: string, blob: Blob): void {
+	const url = URL.createObjectURL(blob);
 	const link = document.createElement("a");
 	link.href = url;
 	link.download = fileName;

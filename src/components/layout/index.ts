@@ -8,3 +8,5 @@ export { Sidebar } from "./Sidebar";
 export { SidebarProvider, useSidebar } from "./SidebarProvider";
 export { ThemeToggle } from "./ThemeToggle";
 export { ThemeProvider, useTheme } from "./ThemeProvider";
+export { PreferencesProvider, usePreferences, useDensity } from "./PreferencesProvider";
+export { DensityToggle } from "./DensityToggle";

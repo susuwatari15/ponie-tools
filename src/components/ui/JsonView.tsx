@@ -1,5 +1,6 @@
 import { useMemo, type FC } from "react";
 import { cn } from "./cn";
+import { JSON_TOKEN_CLASS as TOKEN_CLASS } from "./jsonTokenColors";
 
 type JsonViewProps = {
 	/** Pretty-printed (or raw) JSON text to render with syntax colors. */
@@ -9,15 +10,6 @@ type JsonViewProps = {
 
 const escapeHtml = (input: string): string =>
 	input.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-/** Theme-aware token colors — each needs a light and a dark variant. */
-const TOKEN_CLASS = {
-	key: "text-sky-600 dark:text-sky-300",
-	string: "text-emerald-600 dark:text-emerald-300",
-	number: "text-amber-600 dark:text-amber-300",
-	boolean: "text-fuchsia-600 dark:text-fuchsia-300",
-	null: "text-rose-500 dark:text-rose-300",
-} as const;
 
 const TOKEN_RE =
 	/("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false)\b|\b(null)\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g;

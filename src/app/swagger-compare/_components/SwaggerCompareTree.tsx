@@ -3,6 +3,7 @@
 import { ChevronDown, FolderTree } from "lucide-react";
 import type { FC } from "react";
 import { useMemo, useState } from "react";
+import { useDensity } from "@/components/layout/PreferencesProvider";
 import { cn } from "@/components/ui/cn";
 import { MethodBadge } from "@/components/ui/Badge";
 import type { OpenApiCompareResult } from "@/lib/openApiCompare";
@@ -79,6 +80,8 @@ const CheckBox: FC<CheckBoxProps> = ({ checked, indeterminate, label, onChange }
 type TreeRowsProps = {
 	nodes: CompareTreeNode[];
 	depth: number;
+	/** Density preference: tighter rows and indent. */
+	compact: boolean;
 	expanded: Set<string>;
 	onToggle: (key: string) => void;
 	selectedEndpointId?: string | null;
@@ -91,6 +94,7 @@ type TreeRowsProps = {
 const TreeRows: FC<TreeRowsProps> = ({
 	nodes,
 	depth,
+	compact,
 	expanded,
 	onToggle,
 	selectedEndpointId,
@@ -101,7 +105,8 @@ const TreeRows: FC<TreeRowsProps> = ({
 }) => (
 	<>
 		{nodes.map((node) => {
-			const indent = { paddingLeft: `${depth * 12 + 6}px` };
+			const indent = { paddingLeft: `${depth * (compact ? 10 : 12) + 6}px` };
+			const rowPadding = compact ? "py-0.5" : "py-1";
 
 			if (node.kind === "leaf") {
 				const active = node.endpointId === selectedEndpointId;
@@ -131,7 +136,7 @@ const TreeRows: FC<TreeRowsProps> = ({
 							title={`${statusLabel[node.status]} · ${node.endpointId}${
 								node.summary ? ` — ${node.summary}` : ""
 							}`}
-							className="flex min-w-0 flex-1 items-center gap-2 py-1 text-left"
+							className={cn("flex min-w-0 flex-1 items-center gap-2 text-left", rowPadding)}
 						>
 							<span
 								className={cn("h-1.5 w-1.5 shrink-0 rounded-full", statusDot[node.status])}
@@ -179,7 +184,7 @@ const TreeRows: FC<TreeRowsProps> = ({
 							onClick={() => onToggle(node.key)}
 							aria-expanded={isOpen}
 							title={node.key}
-							className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left"
+							className={cn("flex min-w-0 flex-1 items-center gap-1.5 text-left", rowPadding)}
 						>
 							<ChevronDown
 								className={cn(
@@ -198,6 +203,7 @@ const TreeRows: FC<TreeRowsProps> = ({
 						<TreeRows
 							nodes={node.children}
 							depth={depth + 1}
+							compact={compact}
 							expanded={expanded}
 							onToggle={onToggle}
 							selectedEndpointId={selectedEndpointId}
@@ -238,6 +244,7 @@ export const SwaggerCompareTree: FC<SwaggerCompareTreeProps> = ({
 	onSetEndpointsChecked,
 	className,
 }) => {
+	const compact = useDensity() === "compact";
 	const [expanded, setExpanded] = useState<Set<string>>(new Set());
 	const [prevResult, setPrevResult] = useState<OpenApiCompareResult | null>(null);
 
@@ -336,6 +343,7 @@ export const SwaggerCompareTree: FC<SwaggerCompareTreeProps> = ({
 				<TreeRows
 					nodes={roots}
 					depth={0}
+					compact={compact}
 					expanded={expanded}
 					onToggle={toggle}
 					selectedEndpointId={selectedEndpointId}

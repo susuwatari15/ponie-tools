@@ -1,47 +1,79 @@
 "use client";
 
 import { X } from "lucide-react";
-import type { FC } from "react";
+import { type FC, useId } from "react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/components/ui/cn";
-import { WORKSPACE_NAV_ITEMS } from "./constants/nav-items";
+import { HOME_NAV_ITEM, type NavGroup, type NavItem, TOOL_NAV_GROUPS } from "./constants/nav-items";
+import { DensityToggle } from "./DensityToggle";
 import { navClassName } from "./nav-styles";
 import { useSidebar } from "./SidebarProvider";
 
-const NavItems: FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
+const groupLabelClass = "px-3 font-mono text-[10px] uppercase tracking-widest text-muted";
+
+const NavItemLink: FC<{ item: NavItem; onNavigate?: () => void }> = ({ item, onNavigate }) => {
 	const pathname = usePathname();
+	const { href, end, label, description, icon: Icon } = item;
+	const isActive = end ? pathname === href : pathname.startsWith(href);
 	return (
-		<nav className="flex flex-col gap-1 p-3" aria-label="Main">
-			{WORKSPACE_NAV_ITEMS.map(({ href, end, label, description, icon: Icon }) => {
-				const isActive = end ? pathname === href : pathname.startsWith(href);
-				return (
-					<Link
-						key={href}
-						href={href}
-						aria-current={isActive ? "page" : undefined}
-						onClick={onNavigate}
-						className={navClassName({ isActive })}
-					>
-						<Icon className="size-[1.125rem] shrink-0" aria-hidden />
-						<span className="min-w-0">
-							<span className="block truncate">{label}</span>
-							<span
-								className={cn(
-									"block truncate text-[11px] font-normal",
-									isActive ? "text-accent/70" : "text-muted/70",
-								)}
-							>
-								{description}
-							</span>
-						</span>
-					</Link>
-				);
-			})}
-		</nav>
+		<Link
+			href={href}
+			aria-current={isActive ? "page" : undefined}
+			onClick={onNavigate}
+			className={navClassName({ isActive })}
+		>
+			<Icon className="size-[1.125rem] shrink-0" aria-hidden />
+			<span className="min-w-0">
+				<span className="block truncate">{label}</span>
+				<span
+					className={cn(
+						"block truncate text-[11px] font-normal",
+						isActive ? "text-accent" : "text-muted",
+					)}
+				>
+					{description}
+				</span>
+			</span>
+		</Link>
 	);
 };
+
+const NavGroupSection: FC<{ group: NavGroup; onNavigate?: () => void }> = ({
+	group,
+	onNavigate,
+}) => {
+	const labelId = useId();
+	return (
+		<div role="group" aria-labelledby={labelId} className="flex flex-col gap-1">
+			<p id={labelId} className={groupLabelClass}>
+				{group.label}
+			</p>
+			{group.items.map((item) => (
+				<NavItemLink key={item.href} item={item} onNavigate={onNavigate} />
+			))}
+		</div>
+	);
+};
+
+/** Home, then the tools in their labelled groups (API tools, utilities). */
+const NavItems: FC<{ onNavigate?: () => void }> = ({ onNavigate }) => (
+	<nav className="flex flex-col gap-4 p-3" aria-label="Main">
+		<NavItemLink item={HOME_NAV_ITEM} onNavigate={onNavigate} />
+		{TOOL_NAV_GROUPS.map((group) => (
+			<NavGroupSection key={group.label} group={group} onNavigate={onNavigate} />
+		))}
+	</nav>
+);
+
+/** Viewer preferences pinned under the nav. */
+const SidebarFooter: FC = () => (
+	<div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-line px-3 py-2.5">
+		<span className={cn(groupLabelClass, "px-0")}>Density</span>
+		<DensityToggle />
+	</div>
+);
 
 export const Sidebar: FC = () => {
 	const { collapsed, mobileOpen, closeMobile } = useSidebar();
@@ -51,13 +83,14 @@ export const Sidebar: FC = () => {
 			{/* Desktop column */}
 			<aside
 				className={cn(
-					"w-64 shrink-0 border-r border-line bg-surface/60 backdrop-blur max-w-[15vw]",
-					collapsed ? "hidden" : "hidden lg:block",
+					"w-64 max-w-[15vw] shrink-0 flex-col border-r border-line bg-surface/60 backdrop-blur",
+					collapsed ? "hidden" : "hidden lg:flex",
 				)}
 			>
-				<div className="sticky top-0">
+				<div className="scroll-ide min-h-0 flex-1 overflow-y-auto">
 					<NavItems />
 				</div>
+				<SidebarFooter />
 			</aside>
 
 			{/* Mobile slide-over drawer */}
@@ -96,12 +129,15 @@ export const Sidebar: FC = () => {
 							type="button"
 							onClick={closeMobile}
 							aria-label="Close menu"
-							className="text-muted transition hover:text-fg"
+							className="-m-2.5 rounded-lg p-2.5 text-muted transition hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
 						>
 							<X className="h-5 w-5" />
 						</button>
 					</div>
-					<NavItems onNavigate={closeMobile} />
+					<div className="scroll-ide min-h-0 flex-1 overflow-y-auto">
+						<NavItems onNavigate={closeMobile} />
+					</div>
+					<SidebarFooter />
 				</aside>
 			</div>
 		</>

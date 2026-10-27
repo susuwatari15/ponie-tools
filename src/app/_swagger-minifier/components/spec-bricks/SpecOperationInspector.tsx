@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight, Copy, MinusCircle, X } from "lucide-react";
 import { useState, type FC, type ReactNode } from "react";
 import { IconButton } from "@/components/ui/IconButton";
 import { cn } from "@/components/ui/cn";
-import { useToast } from "@/components/ui/ToastProvider";
+import { useCopy } from "@/components/ui/useCopy";
 import type { CompressedSchema } from "@/types/openapi";
 import {
 	countSchemaFields,
@@ -174,20 +174,16 @@ export const SpecOperationInspector: FC<SpecOperationInspectorProps> = ({
 	onDeselect,
 	className,
 }) => {
-	const { toast } = useToast();
+	const copy = useCopy();
 	const [part, setPart] = useState<SelectedPart | null>(null);
 	const { op, method, path } = operation;
 	const steps = buildSteps(operation);
 
-	const copyOperation = async () => {
-		const json = JSON.stringify({ [path]: { [method]: op } }, null, 2);
-		try {
-			await navigator.clipboard.writeText(json);
-			toast(`${method.toUpperCase()} ${path} copied`, "success");
-		} catch {
-			toast("Couldn't access the clipboard", "error");
-		}
-	};
+	const copyOperation = () =>
+		copy(
+			JSON.stringify({ [path]: { [method]: op } }, null, 2),
+			`${method.toUpperCase()} ${path} copied`,
+		);
 
 	return (
 		<aside

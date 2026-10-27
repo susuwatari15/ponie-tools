@@ -10,6 +10,8 @@ type SwaggerEndpointGroupProps = {
 	onToggleCollapsed: () => void;
 	onSetCollapsed: (collapsed: boolean) => void;
 	onSetSelected: (selected: boolean) => void;
+	/** Density preference: tighter header and row spacing. */
+	compact?: boolean;
 	/** Roving-tabindex wiring from the parent list. */
 	navKey: string;
 	tabIndex: number;
@@ -28,6 +30,7 @@ export const SwaggerEndpointGroup: FC<SwaggerEndpointGroupProps> = ({
 	onToggleCollapsed,
 	onSetCollapsed,
 	onSetSelected,
+	compact = false,
 	navKey,
 	tabIndex,
 	onFocusNav,
@@ -52,7 +55,12 @@ export const SwaggerEndpointGroup: FC<SwaggerEndpointGroupProps> = ({
 
 	return (
 		<li>
-			<div className="sticky top-0 z-10 flex items-center gap-2 rounded-md bg-surface/95 px-2 py-1.5 backdrop-blur">
+			<div
+				className={cn(
+					"sticky top-0 z-10 flex items-center gap-2 rounded-md bg-surface/95 px-2 backdrop-blur",
+					compact ? "py-1" : "py-1.5",
+				)}
+			>
 				<input
 					type="checkbox"
 					checked={allSelected}
@@ -94,7 +102,9 @@ export const SwaggerEndpointGroup: FC<SwaggerEndpointGroupProps> = ({
 					</span>
 				</button>
 			</div>
-			{collapsed ? null : <ul className="mt-1 space-y-1.5 pl-2">{children}</ul>}
+			{collapsed ? null : (
+				<ul className={cn("pl-2", compact ? "space-y-1" : "mt-1 space-y-1.5")}>{children}</ul>
+			)}
 		</li>
 	);
 };

@@ -36,7 +36,7 @@ Response (extension → page):
 
 ### `ping`
 
-Payload: `{}`. Success: `{ ok: true, version: string }`. Used for presence detection; page treats no response within ~500 ms as "extension absent".
+Payload: `{}`. Success: `{ ok: true, version: string, hosts: string[] }` (`hosts` = the manifest's `host_permissions`; builds before it was added omit it). Used for presence detection and the header's extension popover; page treats no response within ~500 ms as "extension absent".
 
 ### `fetchSwagger`
 

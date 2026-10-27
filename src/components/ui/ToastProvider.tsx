@@ -88,7 +88,7 @@ export const ToastProvider: FC<{ children: ReactNode }> = ({ children }) => {
 								type="button"
 								onClick={() => dismiss(t.id)}
 								aria-label="Dismiss"
-								className="shrink-0 text-muted transition hover:text-fg"
+								className="shrink-0 rounded text-muted transition hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 pointer-coarse:-m-3 pointer-coarse:p-3"
 							>
 								<X className="h-3.5 w-3.5" />
 							</button>

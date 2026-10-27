@@ -17,8 +17,8 @@ export const HOME_NAV_ITEM: NavItem = {
 	icon: LayoutDashboard,
 };
 
-/** The three tools, in workflow order. */
-export const TOOL_NAV_ITEMS: NavItem[] = [
+/** OpenAPI / permission tools, in workflow order. */
+export const API_TOOL_NAV_ITEMS: NavItem[] = [
 	{
 		href: "/minifier",
 		label: "Swagger Minifier",
@@ -37,6 +37,10 @@ export const TOOL_NAV_ITEMS: NavItem[] = [
 		description: "Compare permissions across role groups",
 		icon: ShieldCheck,
 	},
+];
+
+/** Small standalone converters and formatters. */
+export const UTILITY_NAV_ITEMS: NavItem[] = [
 	{
 		href: "/px-to-rem",
 		label: "PX ↔ REM",
@@ -56,5 +60,18 @@ export const TOOL_NAV_ITEMS: NavItem[] = [
 		icon: FileJson,
 	},
 ];
+
+export type NavGroup = {
+	label: string;
+	items: NavItem[];
+};
+
+export const TOOL_NAV_GROUPS: NavGroup[] = [
+	{ label: "API tools", items: API_TOOL_NAV_ITEMS },
+	{ label: "Utilities", items: UTILITY_NAV_ITEMS },
+];
+
+/** Every tool, flattened (API tools first). */
+export const TOOL_NAV_ITEMS: NavItem[] = [...API_TOOL_NAV_ITEMS, ...UTILITY_NAV_ITEMS];
 
 export const WORKSPACE_NAV_ITEMS: NavItem[] = [HOME_NAV_ITEM, ...TOOL_NAV_ITEMS];

@@ -12,7 +12,8 @@ export type { SelectProps } from "./Select";
 export { Card, CardHeader } from "./Card";
 export type { CardProps, CardHeaderProps } from "./Card";
 export { JsonView } from "./JsonView";
-export { JsonTree } from "./JsonTree";
+// `JsonTree` is left out on purpose: import it with `next/dynamic` from "./JsonTree" so it
+// stays out of every page bundle that uses this barrel.
 export { Badge, MethodBadge } from "./Badge";
 export type { BadgeProps, BadgeTone } from "./Badge";
 export { Collapsible } from "./Collapsible";
@@ -21,12 +22,16 @@ export { Toolbar, ToolbarLabel } from "./Toolbar";
 export { EmptyState } from "./EmptyState";
 export type { EmptyStateProps } from "./EmptyState";
 export { Spinner } from "./Spinner";
+export { Skeleton, SkeletonGroup } from "./Skeleton";
+export { SegmentedControl } from "./SegmentedControl";
+export type { SegmentedControlProps, SegmentedOption } from "./SegmentedControl";
 export { Kbd } from "./Kbd";
 export { Modal } from "./Modal";
 export type { ModalProps } from "./Modal";
 export { Popover } from "./Popover";
 export type { PopoverProps } from "./Popover";
 export { ToastProvider, useToast } from "./ToastProvider";
+export { useCopy } from "./useCopy";
 export { methodStyle, METHOD_STYLES, HTTP_METHOD_ORDER } from "./methodColors";
 export { ResizeHandle } from "./ResizeHandle";
 export { useResizableSplit } from "./useResizableSplit";

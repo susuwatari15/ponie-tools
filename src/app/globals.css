@@ -31,6 +31,18 @@ html.dark {
   --accent: 78 161 255; /* #4EA1FF */
 }
 
+/*
+ * Fallback keyboard focus ring for every interactive element. Components that
+ * draw their own (`focus-visible:outline-none focus-visible:ring-2 …`) override
+ * it, since utilities win over the base layer.
+ */
+@layer base {
+  :where(a, button, summary, [role="tab"], [role="radio"], [tabindex]):focus-visible {
+    outline: 2px solid rgb(var(--accent) / 0.6);
+    outline-offset: 2px;
+  }
+}
+
 html,
 body,
 #root {

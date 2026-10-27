@@ -5,6 +5,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SwaggerComparePanel } from "./_components/SwaggerComparePanel";
+import { useCompareCommands } from "./_hooks/useCompareCommands";
 import { useSwaggerCompare } from "./_hooks/useSwaggerCompare";
 import { parseFilterParams } from "./_lib/compareFilters";
 import { parseSideParam } from "./_lib/compareSources";
@@ -19,6 +20,7 @@ const SwaggerCompareContent: FC = () => {
 		filters: parseFilterParams(searchParams),
 	}));
 	const m = useSwaggerCompare(init);
+	useCompareCommands(m);
 
 	return (
 		<div className="mx-auto flex h-full w-full flex-col gap-5 p-4 sm:p-6">

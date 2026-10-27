@@ -76,7 +76,7 @@ export const ConverterCard: FC<{ m: UsePxRem }> = ({ m }) => (
 			/>
 		</div>
 
-		<p className="flex flex-nowrap items-center gap-1.5 whitespace-nowrap text-sm text-muted">
+		<p className="flex flex-wrap items-center gap-1.5 text-sm text-muted">
 			Calculation based on a root font-size of
 			<Input
 				type="number"

@@ -1,13 +1,29 @@
 "use client";
 
-import { Download, ExternalLink, Users } from "lucide-react";
+import { Download, ExternalLink, KeyRound, Users } from "lucide-react";
 import { type FC, useState } from "react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Spinner } from "@/components/ui/Spinner";
-import type { SwaggerProfile } from "@/lib/swaggerProfilesStorage";
-import { ProfileManagerModal } from "./ProfileManagerModal";
-import { SaveSnapshotForm } from "./SaveSnapshotForm";
+import { isUrlCoveredByExtension } from "@/lib/swaggerExtensionBridge";
+import {
+  needsSessionPassword,
+  type ProfileInput,
+  type SwaggerProfile,
+} from "@/lib/swaggerProfilesStorage";
+
+// Both forms use react-hook-form + zod, which Turbopack can't tree-shake (~300 KB),
+// and neither shows before a spec or the profile manager is opened.
+const SaveSnapshotForm = dynamic(
+  () => import("./SaveSnapshotForm").then((mod) => mod.SaveSnapshotForm),
+  { loading: () => <Skeleton className="mt-3 h-[60px]" /> },
+);
+const ProfileManagerModal = dynamic(() =>
+  import("./ProfileManagerModal").then((mod) => mod.ProfileManagerModal),
+);
 
 function buildAuthUrl(url: string, username: string, password: string): string {
   try {
@@ -30,19 +46,15 @@ type SwaggerUrlFetchFormProps = {
   isFetchingUrl: boolean;
   urlFetchError: string;
   extensionAvailable: boolean;
+  /** Extension `host_permissions`; null when unknown (older build). */
+  extensionHosts: string[] | null;
   onFetchFromUrl: () => void;
   rawJson: string;
   onSnapshotSaved?: () => void;
   profiles: SwaggerProfile[];
   selectedProfile: SwaggerProfile | null;
   onSelectProfile: (id: string | null) => void;
-  onCreateProfile: (input: {
-    name: string;
-    color: string;
-    url: string;
-    username: string;
-    password: string;
-  }) => Promise<ProfileWriteResult>;
+  onCreateProfile: (input: ProfileInput) => Promise<ProfileWriteResult>;
   onEditProfile: (
     id: string,
     patch: Partial<Omit<SwaggerProfile, "id">>,
@@ -51,12 +63,15 @@ type SwaggerUrlFetchFormProps = {
   /** A pasted URL with no matching profile; opens the profile form prefilled. */
   pendingProfileUrl: string | null;
   onClearPendingProfileUrl: () => void;
+  /** Sets the in-memory password of an "ask each session" profile. */
+  onSetSessionPassword: (id: string, password: string) => void;
 };
 
 export const SwaggerUrlFetchForm: FC<SwaggerUrlFetchFormProps> = ({
   isFetchingUrl,
   urlFetchError,
   extensionAvailable,
+  extensionHosts,
   onFetchFromUrl,
   rawJson,
   onSnapshotSaved,
@@ -68,8 +83,10 @@ export const SwaggerUrlFetchForm: FC<SwaggerUrlFetchFormProps> = ({
   onDeleteProfile,
   pendingProfileUrl,
   onClearPendingProfileUrl,
+  onSetSessionPassword,
 }) => {
   const [isManagerOpen, setIsManagerOpen] = useState(false);
+  const [sessionPasswordDraft, setSessionPasswordDraft] = useState("");
   const showManager = isManagerOpen || Boolean(pendingProfileUrl);
 
   const closeManager = () => {
@@ -81,6 +98,9 @@ export const SwaggerUrlFetchForm: FC<SwaggerUrlFetchFormProps> = ({
   const username = selectedProfile?.username ?? "";
   const password = selectedProfile?.password ?? "";
   const hasUrl = Boolean(profileUrl.trim());
+  const viaExtension =
+    extensionAvailable && isUrlCoveredByExtension(profileUrl, extensionHosts);
+  const askForPassword = selectedProfile ? needsSessionPassword(selectedProfile) : false;
 
   return (
     <div className="rounded-lg border border-line bg-raised/50 p-3">
@@ -119,12 +139,6 @@ export const SwaggerUrlFetchForm: FC<SwaggerUrlFetchFormProps> = ({
         </Button>
       </div>
 
-      {extensionAvailable ? (
-        <p className="mt-2 text-[11px] text-emerald-600 dark:text-emerald-400">
-          Browser extension connected — fetching uses your browser session.
-        </p>
-      ) : null}
-
       {selectedProfile ? (
         hasUrl ? (
           <a
@@ -140,6 +154,54 @@ export const SwaggerUrlFetchForm: FC<SwaggerUrlFetchFormProps> = ({
             This profile has no Swagger URL set.
           </p>
         )
+      ) : null}
+
+      {hasUrl ? (
+        viaExtension ? (
+          <p className="mt-2 text-[11px] text-emerald-700 dark:text-emerald-400">
+            Fetches through the browser extension, using your browser session.
+          </p>
+        ) : (
+          <p className="mt-2 text-[11px] text-muted">
+            {extensionAvailable
+              ? "This host isn't on the extension's allowlist, so it fetches"
+              : "Fetches"}{" "}
+            through the server route (<code className="font-mono">/api/fetch-swagger</code>)
+            with the profile&apos;s basic auth.
+            {extensionAvailable
+              ? ""
+              : " Install the browser extension to use your browser session instead."}
+          </p>
+        )
+      ) : null}
+
+      {selectedProfile && askForPassword ? (
+        <form
+          className="mt-2 flex items-center gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!sessionPasswordDraft) return;
+            onSetSessionPassword(selectedProfile.id, sessionPasswordDraft);
+            setSessionPasswordDraft("");
+          }}
+        >
+          <label className="sr-only" htmlFor="swagger-session-password">
+            Password for {selectedProfile.name}
+          </label>
+          <Input
+            id="swagger-session-password"
+            type="password"
+            autoComplete="off"
+            value={sessionPasswordDraft}
+            onChange={(event) => setSessionPasswordDraft(event.target.value)}
+            placeholder={`Password for ${selectedProfile.username} (this session only)`}
+            icon={<KeyRound className="h-3.5 w-3.5" />}
+            className="text-xs"
+          />
+          <Button type="submit" size="sm" disabled={!sessionPasswordDraft}>
+            Use
+          </Button>
+        </form>
       ) : null}
 
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -196,6 +258,7 @@ export const SwaggerUrlFetchForm: FC<SwaggerUrlFetchFormProps> = ({
           onCreateProfile={onCreateProfile}
           onEditProfile={onEditProfile}
           onDeleteProfile={onDeleteProfile}
+          extensionAvailable={extensionAvailable}
         />
       ) : null}
     </div>

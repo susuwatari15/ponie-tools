@@ -20,12 +20,14 @@ Always provide both light AND dark variants. Never leave a color without its dar
 
 ## Custom Theme Colors
 
-Defined in `tailwind.config.ts` (content scans `src/app/`, `src/components/`, `src/lib/`) — use these for brand-consistent styling:
+Defined as CSS variables in `src/app/globals.css` (light on `:root`, dark on `html.dark`) and mapped in `tailwind.config.ts` (content scans `src/app/`, `src/components/`, `src/lib/`). They switch with the theme, so they need no `dark:` variant:
 
-- `base` (#070A14) — deepest background
-- `panel` (#101A31) — card/panel backgrounds
-- `panelSoft` (#16223F) — softer panel variant
-- `accent` (#24A3FF) — primary blue accent
+- `ink` — page background
+- `surface` — cards/panels; `raised` — hover/raised areas
+- `line` — borders and dividers
+- `fg` — primary text; `muted` — secondary text (≥ 4.5:1 on `surface`/`raised` in both themes)
+- `accent` — interactive blue
+- `get` / `post` / `put` / `patch` / `del` — static HTTP-method / diff signal colors
 
 ## Style Constants Pattern
 
@@ -51,5 +53,6 @@ Import and compose these in components instead of repeating long class strings.
 - Rounded corners: `rounded-md` or `rounded-lg`
 - Transitions: `transition` on interactive elements
 - Opacity backgrounds: use `/80`, `/90` suffixes for depth layering
-- Focus rings: `focus:outline-none focus:ring-2 focus:ring-accent/50`
+- Focus rings: `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50` (a global accent `:focus-visible` outline in `globals.css` is the fallback for anything without one)
+- Touch targets: `pointer-coarse:min-h-10` (and `min-w-10` for icon buttons) — the variant is defined in `tailwind.config.ts`
 - Hover states: pair with transition for smooth feedback

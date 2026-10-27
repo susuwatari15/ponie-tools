@@ -38,3 +38,6 @@ Thumbs.db
 .pnpm-store/
 .pnpm-store*
 plans
+
+# npm lockfile (pnpm is the package manager)
+package-lock.json

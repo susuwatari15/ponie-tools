@@ -7,7 +7,7 @@ import { MethodBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/components/ui/cn";
 import { Collapsible } from "@/components/ui/Collapsible";
-import { useToast } from "@/components/ui/ToastProvider";
+import { useCopy } from "@/components/ui/useCopy";
 import type {
 	OpenApiDiagnostic,
 	OpenApiDiagnosticsReport,
@@ -51,7 +51,7 @@ export const SwaggerDiagnosticsPanel: FC<SwaggerDiagnosticsPanelProps> = ({
 	label,
 	className,
 }) => {
-	const { toast } = useToast();
+	const copy = useCopy();
 	const [open, setOpen] = useState(report.errorCount > 0);
 	const [prevReport, setPrevReport] = useState(report);
 
@@ -71,16 +71,8 @@ export const SwaggerDiagnosticsPanel: FC<SwaggerDiagnosticsPanelProps> = ({
 	// down to stylesheet order.
 	const toneRing = hasErrors ? "ring-1 ring-del/50" : "ring-1 ring-put/50";
 
-	const handleCopy = async () => {
-		try {
-			await navigator.clipboard.writeText(
-				formatDiagnosticsMarkdown(report, label),
-			);
-			toast("Spec issues copied as Markdown", "success");
-		} catch {
-			toast("Couldn't access the clipboard", "error");
-		}
-	};
+	const handleCopy = () =>
+		copy(formatDiagnosticsMarkdown(report, label), "Spec issues copied as Markdown");
 
 	return (
 		<Collapsible

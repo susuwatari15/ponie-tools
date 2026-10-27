@@ -1,0 +1,22 @@
+{
+	"openapi": "3.0.0",
+	"info": { "title": "Duplicates", "version": "1.0.0" },
+	"paths": {
+		"/mrp/trace": {
+			"get": {
+				"summary": "Trace",
+				"responses": { "200": { "description": "OK" } }
+			},
+			"get": {
+				"summary": "Trace again",
+				"responses": { "200": { "description": "OK" } }
+			}
+		}
+	},
+	"components": {
+		"schemas": {
+			"Thing": { "type": "string" },
+			"Thing": { "type": "integer" }
+		}
+	}
+}

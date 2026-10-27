@@ -1,13 +1,12 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useToast } from "@/components/ui";
+import { useCopy } from "@/components/ui";
 import {
 	DEFAULT_BASE_PX,
 	PX_STEPS,
 	REM_STEPS,
 } from "../_constants/referenceValues";
-import { copyText } from "../_lib/copyToClipboard";
 import { formatNumber, parseValue, pxToRem, remToPx } from "../_lib/convert";
 
 export type ReferenceRow = {
@@ -31,7 +30,7 @@ export type UsePxRem = {
 };
 
 export function usePxRem(): UsePxRem {
-	const { toast } = useToast();
+	const copyToClipboard = useCopy();
 
 	const [pxValue, setPxValue] = useState(String(DEFAULT_BASE_PX));
 	const [remValue, setRemValue] = useState("1");
@@ -75,11 +74,9 @@ export function usePxRem(): UsePxRem {
 	const copy = useCallback(
 		(value: string, unit: "px" | "rem") => {
 			if (value.trim() === "") return;
-			void copyText(value)
-				.then(() => toast(`Copied ${value}${unit}`))
-				.catch(() => toast("Failed to copy", "error"));
+			void copyToClipboard(value, `Copied ${value}${unit}`);
 		},
-		[toast],
+		[copyToClipboard],
 	);
 
 	const pxRows = useMemo<ReferenceRow[]>(

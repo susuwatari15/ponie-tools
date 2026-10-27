@@ -4,9 +4,11 @@ import type { FC } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { JsonFormatter } from "./_components/JsonFormatter";
 import { useJsonFormatter } from "./_hooks/useJsonFormatter";
+import { useJsonFormatterCommands } from "./_hooks/useJsonFormatterCommands";
 
 const JsonFormatterPage: FC = () => {
 	const m = useJsonFormatter();
+	useJsonFormatterCommands(m);
 
 	return (
 		<div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 sm:p-6">

@@ -119,7 +119,7 @@ export const CompareFilterBar: FC<{ m: SwaggerCompareController }> = ({ m }) => 
 							aria-pressed={on}
 							onClick={() => filterActions.toggleStatus(status)}
 							className={cn(
-								"inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition",
+								"inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition pointer-coarse:min-h-10",
 								on ? statusChip[status].on : statusChip[status].off,
 							)}
 						>
@@ -144,7 +144,7 @@ export const CompareFilterBar: FC<{ m: SwaggerCompareController }> = ({ m }) => 
 									onClick={() => filterActions.toggleMethod(method)}
 									aria-pressed={on}
 									className={cn(
-										"rounded-md px-2 py-0.5 font-mono text-xs font-semibold uppercase tracking-wide transition",
+										"rounded-md px-2 py-0.5 font-mono text-xs font-semibold uppercase tracking-wide transition pointer-coarse:min-h-10",
 										on ? style.solid : style.chip,
 									)}
 								>

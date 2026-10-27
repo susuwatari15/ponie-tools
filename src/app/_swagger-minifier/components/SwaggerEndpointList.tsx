@@ -1,5 +1,6 @@
 import { AlertTriangle, SearchX } from "lucide-react";
 import { type FC, type KeyboardEvent, useRef, useState } from "react";
+import { useDensity } from "@/components/layout/PreferencesProvider";
 import { cn } from "@/components/ui/cn";
 import { MethodBadge } from "@/components/ui/Badge";
 import { Kbd } from "@/components/ui/Kbd";
@@ -34,6 +35,7 @@ const HINTS: { keys: string; label: string }[] = [
 
 type EndpointRowProps = {
 	endpoint: EndpointItem;
+	compact: boolean;
 	checked: boolean;
 	issues?: OpenApiDiagnostic[];
 	tabIndex: number;
@@ -43,6 +45,7 @@ type EndpointRowProps = {
 
 const EndpointRow: FC<EndpointRowProps> = ({
 	endpoint,
+	compact,
 	checked,
 	issues,
 	tabIndex,
@@ -56,7 +59,8 @@ const EndpointRow: FC<EndpointRowProps> = ({
 			    nested interactive controls. */}
 			<label
 				className={cn(
-					"flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 transition focus-within:ring-2 focus-within:ring-accent/50",
+					"flex cursor-pointer items-start rounded-lg border transition focus-within:ring-2 focus-within:ring-accent/50",
+					compact ? "gap-2 px-2.5 py-1" : "gap-3 px-3 py-2",
 					checked
 						? "border-accent/60 bg-accent/10"
 						: "border-line bg-surface hover:border-muted/40 hover:bg-raised",
@@ -93,7 +97,7 @@ const EndpointRow: FC<EndpointRowProps> = ({
 						) : null}
 					</span>
 					{endpoint.summary ? (
-						<span className="mt-1 block text-xs text-muted">
+						<span className={cn("block text-muted", compact ? "text-[11px]" : "mt-1 text-xs")}>
 							{endpoint.summary}
 						</span>
 					) : null}
@@ -121,6 +125,8 @@ export const SwaggerEndpointList: FC<SwaggerEndpointListProps> = ({
 	diagnosticsByEndpoint,
 }) => {
 	const listRef = useRef<HTMLDivElement>(null);
+	const compact = useDensity() === "compact";
+	const listSpacing = compact ? "space-y-1" : "space-y-1.5";
 	const [activeKey, setActiveKey] = useState<string | null>(null);
 
 	const showHeaders = groupMode !== "none";
@@ -192,6 +198,7 @@ export const SwaggerEndpointList: FC<SwaggerEndpointListProps> = ({
 			<EndpointRow
 				key={endpoint.id}
 				endpoint={endpoint}
+				compact={compact}
 				checked={selectedIds.has(endpoint.id)}
 				issues={diagnosticsByEndpoint?.get(endpoint.id)}
 				tabIndex={tabIndexFor(key)}
@@ -209,7 +216,7 @@ export const SwaggerEndpointList: FC<SwaggerEndpointListProps> = ({
 					No matching endpoints.
 				</div>
 			) : showHeaders ? (
-				<ul className="space-y-1.5" aria-label="Endpoints">
+				<ul className={listSpacing} aria-label="Endpoints">
 					{groups.map((group) => {
 						const key = groupNavKey(group.key);
 						const selectedInGroup = group.endpoints.filter((endpoint) =>
@@ -229,6 +236,7 @@ export const SwaggerEndpointList: FC<SwaggerEndpointListProps> = ({
 										selected,
 									)
 								}
+								compact={compact}
 								navKey={key}
 								tabIndex={tabIndexFor(key)}
 								onFocusNav={() => setActiveKey(key)}
@@ -239,7 +247,7 @@ export const SwaggerEndpointList: FC<SwaggerEndpointListProps> = ({
 					})}
 				</ul>
 			) : (
-				<ul className="space-y-1.5" aria-label="Endpoints">
+				<ul className={listSpacing} aria-label="Endpoints">
 					{visibleEndpoints.map(renderRow)}
 				</ul>
 			)}

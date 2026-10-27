@@ -29,12 +29,13 @@ export const Collapsible: FC<CollapsibleProps> = ({
 			className,
 		)}
 	>
-		<div className="flex items-center justify-between gap-3 px-4 py-3">
+		{/* Wraps so a wide action row drops under the title on narrow screens. */}
+		<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3">
 			<button
 				type="button"
 				onClick={onToggle}
 				aria-expanded={open}
-				className="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 rounded"
+				className="flex min-w-[12rem] flex-1 items-center gap-3 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
 			>
 				<ChevronDown
 					className={cn(
@@ -54,7 +55,7 @@ export const Collapsible: FC<CollapsibleProps> = ({
 				</span>
 			</button>
 			{actions ? (
-				<div className="flex shrink-0 flex-wrap items-center gap-1.5">
+				<div className="flex max-w-full shrink-0 flex-wrap items-center gap-1.5">
 					{actions}
 				</div>
 			) : null}

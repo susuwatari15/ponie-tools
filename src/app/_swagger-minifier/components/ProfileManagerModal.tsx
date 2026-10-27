@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import type { FC } from "react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -14,6 +14,7 @@ import { Modal } from "@/components/ui/Modal";
 import {
 	DEFAULT_PROFILE_COLOR,
 	PROFILE_COLORS,
+	type ProfileInput,
 	type SwaggerProfile,
 } from "@/lib/swaggerProfilesStorage";
 
@@ -23,6 +24,7 @@ const profileSchema = z.object({
 	url: z.string(),
 	username: z.string(),
 	password: z.string(),
+	askPassword: z.boolean(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -36,13 +38,7 @@ type ProfileManagerModalProps = {
 	selectedProfileId: string | null;
 	onClose: () => void;
 	onSelectProfile: (id: string | null) => void;
-	onCreateProfile: (input: {
-		name: string;
-		color: string;
-		url: string;
-		username: string;
-		password: string;
-	}) => Promise<ProfileWriteResult>;
+	onCreateProfile: (input: ProfileInput) => Promise<ProfileWriteResult>;
 	onEditProfile: (
 		id: string,
 		patch: Partial<Omit<SwaggerProfile, "id">>,
@@ -50,6 +46,8 @@ type ProfileManagerModalProps = {
 	onDeleteProfile: (id: string) => void;
 	/** Opens straight into a new-profile form prefilled with this URL. */
 	initialUrl?: string;
+	/** The extension fetches with browser cookies, so basic auth is hidden behind a toggle. */
+	extensionAvailable?: boolean;
 };
 
 const labelClass = "font-mono text-[10px] uppercase tracking-widest text-muted";
@@ -60,6 +58,7 @@ const emptyForm: ProfileFormValues = {
 	url: "",
 	username: "",
 	password: "",
+	askPassword: false,
 };
 
 function formForUrl(url: string): ProfileFormValues {
@@ -81,8 +80,10 @@ export const ProfileManagerModal: FC<ProfileManagerModalProps> = ({
 	onEditProfile,
 	onDeleteProfile,
 	initialUrl,
+	extensionAvailable = false,
 }) => {
 	const [editingId, setEditingId] = useState<string | null>(null);
+	const [showBasicAuth, setShowBasicAuth] = useState(false);
 	const [isFormOpen, setIsFormOpen] = useState(Boolean(initialUrl));
 	const [submitError, setSubmitError] = useState("");
 
@@ -91,6 +92,8 @@ export const ProfileManagerModal: FC<ProfileManagerModalProps> = ({
 		defaultValues: initialUrl ? formForUrl(initialUrl) : emptyForm,
 	});
 	const selectedColor = form.watch("color");
+	const askPassword = form.watch("askPassword");
+	const authFieldsVisible = !extensionAvailable || showBasicAuth;
 
 	const openCreate = () => {
 		setEditingId(null);
@@ -108,6 +111,7 @@ export const ProfileManagerModal: FC<ProfileManagerModalProps> = ({
 			url: profile.url,
 			username: profile.username,
 			password: profile.password,
+			askPassword: Boolean(profile.askPassword),
 		});
 		setIsFormOpen(true);
 	};
@@ -168,6 +172,7 @@ export const ProfileManagerModal: FC<ProfileManagerModalProps> = ({
 										<p className="truncate text-[11px] text-muted">
 											{profile.url || "(no url)"}
 											{profile.username ? ` · ${profile.username}` : ""}
+											{profile.askPassword ? " · password asked each session" : ""}
 										</p>
 									</div>
 									<Button
@@ -248,16 +253,59 @@ export const ProfileManagerModal: FC<ProfileManagerModalProps> = ({
 							/>
 						</label>
 
-						<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-							<label className="flex flex-col gap-1">
-								<span className={labelClass}>Username</span>
-								<Input type="text" autoComplete="off" {...form.register("username")} />
-							</label>
-							<label className="flex flex-col gap-1">
-								<span className={labelClass}>Password</span>
-								<Input type="password" autoComplete="off" {...form.register("password")} />
-							</label>
-						</div>
+						{authFieldsVisible ? (
+							<>
+								<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+									<label className="flex flex-col gap-1">
+										<span className={labelClass}>Username</span>
+										<Input type="text" autoComplete="off" {...form.register("username")} />
+									</label>
+									<label className="flex flex-col gap-1">
+										<span className={labelClass}>
+											Password{askPassword ? " (this session only)" : ""}
+										</span>
+										<Input type="password" autoComplete="off" {...form.register("password")} />
+									</label>
+								</div>
+
+								<label className="flex items-start gap-2 text-xs text-fg">
+									<input
+										type="checkbox"
+										className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-line text-accent focus:ring-accent"
+										{...form.register("askPassword")}
+									/>
+									<span>
+										Don&apos;t store the password — ask each session
+										<span className="block text-[11px] text-muted">
+											Kept in memory only and forgotten on reload.
+										</span>
+									</span>
+								</label>
+
+								{askPassword ? null : (
+									<p className="flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[11px] text-amber-700 dark:text-amber-300">
+										<ShieldAlert className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
+										<span>
+											Saved passwords are stored unencrypted in this browser&apos;s IndexedDB —
+											anyone with access to this browser profile can read them. Backups leave
+											them out unless you opt in.
+										</span>
+									</p>
+								)}
+							</>
+						) : (
+							<p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1.5 text-[11px] text-emerald-700 dark:text-emerald-300">
+								The browser extension is connected, so fetches use your browser session —
+								no credentials needed.{" "}
+								<button
+									type="button"
+									onClick={() => setShowBasicAuth(true)}
+									className="font-medium underline underline-offset-2 hover:no-underline"
+								>
+									Use basic auth anyway
+								</button>
+							</p>
+						)}
 
 						{submitError ? (
 							<p className="text-[11px] text-amber-600 dark:text-amber-300">

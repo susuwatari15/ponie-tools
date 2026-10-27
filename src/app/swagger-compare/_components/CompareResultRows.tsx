@@ -1,11 +1,18 @@
 import { AlertTriangle, ChevronDown } from "lucide-react";
 import type { FC } from "react";
+import dynamic from "next/dynamic";
 import { cn } from "@/components/ui/cn";
+import { Skeleton } from "@/components/ui/Skeleton";
 import type { ChangedEndpointDiff, ChangedSchemaDiff } from "@/lib/openApiCompare";
-import { TextDiffUnified } from "./TextDiffUnified";
 import { endpointDomId, schemaDomId } from "../_lib/compareTree";
 
-export const focusRing = "ring-2 ring-accent/60 ring-offset-2 ring-offset-base";
+/** Rendered only when a row is expanded; keeps the `diff` package out of the page bundle. */
+const TextDiffUnified = dynamic(
+	() => import("./TextDiffUnified").then((mod) => mod.TextDiffUnified),
+	{ loading: () => <Skeleton className="h-24" /> },
+);
+
+export const focusRing = "ring-2 ring-accent/60 ring-offset-2 ring-offset-surface";
 
 /** "via" links shown per endpoint before collapsing the rest into a count. */
 const MAX_VIA_LINKS = 8;

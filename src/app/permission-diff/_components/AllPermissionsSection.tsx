@@ -2,12 +2,12 @@ import type { FC } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Collapsible } from "@/components/ui/Collapsible";
-import { cn } from "@/components/ui/cn";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { ToolbarLabel } from "@/components/ui/Toolbar";
 import type { PermissionCopyFormat } from "../_lib/formatPermissionShortList";
 import { matchesSearch } from "../_lib/permissionDisplay";
 import type { PermissionEntry, SectionId } from "../types";
-import { PermissionPill } from "./PermissionPill";
+import { PermissionPillList } from "./PermissionPill";
 
 type AllGroupView = "group1" | "group2";
 
@@ -48,22 +48,6 @@ export const AllPermissionsSection: FC<AllPermissionsSectionProps> = ({
 	const filteredItems = items.filter((entry) => matchesSearch(entry, searchQuery));
 	const canCopy = filteredItems.length > 0;
 
-	const groupTab = (view: AllGroupView, label: string) => (
-		<button
-			type="button"
-			onClick={() => onGroupChange(view)}
-			aria-pressed={allGroupView === view}
-			className={cn(
-				"rounded-md px-2.5 py-1 text-xs font-medium transition",
-				allGroupView === view
-					? "bg-accent/15 text-accent ring-1 ring-accent/40"
-					: "border border-line text-muted hover:text-fg",
-			)}
-		>
-			{label}
-		</button>
-	);
-
 	return (
 		<Collapsible
 			open={isOpen}
@@ -77,8 +61,15 @@ export const AllPermissionsSection: FC<AllPermissionsSectionProps> = ({
 			description="Toggle the complete permission list by group."
 			actions={
 				<div className="flex flex-wrap items-center gap-1.5">
-					{groupTab("group1", group1Label)}
-					{groupTab("group2", group2Label)}
+					<SegmentedControl
+						value={allGroupView}
+						onChange={onGroupChange}
+						label="Show permissions of"
+						options={[
+							{ value: "group1", label: group1Label },
+							{ value: "group2", label: group2Label },
+						]}
+					/>
 					<ToolbarLabel className="ml-1">JSON</ToolbarLabel>
 					<Button size="sm" variant="ghost" disabled={!canCopy} onClick={() => onCopyJson("all", filteredItems, "full", shortModuleLabel)}>
 						Full
@@ -99,13 +90,7 @@ export const AllPermissionsSection: FC<AllPermissionsSectionProps> = ({
 			{filteredItems.length === 0 ? (
 				<p className="text-sm text-muted">No permissions match the filter.</p>
 			) : (
-				<ul className="flex flex-wrap gap-2">
-					{filteredItems.map((entry) => (
-						<li key={entry.canonical}>
-							<PermissionPill entry={entry} />
-						</li>
-					))}
-				</ul>
+				<PermissionPillList items={filteredItems} />
 			)}
 		</Collapsible>
 	);

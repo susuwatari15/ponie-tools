@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import type { FC } from "react";
 import { cn } from "@/components/ui/cn";
+import { Spinner } from "@/components/ui/Spinner";
 import type { OpenApiDiagnosticsReport } from "@/lib/openApiDiagnostics";
 import { describeDiagnosticCounts } from "@/lib/openApiDiagnostics";
 import { formatBytes, formatTokens, type SizeEstimate } from "@/lib/tokenEstimate";
@@ -8,6 +9,8 @@ import { formatBytes, formatTokens, type SizeEstimate } from "@/lib/tokenEstimat
 type SwaggerParseStatusProps = {
 	error: string;
 	endpointCount: number;
+	/** A large spec is still being indexed in the worker. */
+	indexing?: boolean;
 	hasDoc: boolean;
 	diagnostics: OpenApiDiagnosticsReport;
 	fullSpecSize: SizeEstimate | null;
@@ -16,6 +19,7 @@ type SwaggerParseStatusProps = {
 export const SwaggerParseStatus: FC<SwaggerParseStatusProps> = ({
 	error,
 	endpointCount,
+	indexing = false,
 	hasDoc,
 	diagnostics,
 	fullSpecSize,
@@ -25,6 +29,11 @@ export const SwaggerParseStatus: FC<SwaggerParseStatusProps> = ({
 			<span className="inline-flex items-center gap-1.5 rounded-md border border-del/40 bg-del/10 px-2 py-1 text-del">
 				<AlertTriangle className="h-3.5 w-3.5" />
 				{error}
+			</span>
+		) : hasDoc && indexing ? (
+			<span className="inline-flex items-center gap-1.5 text-muted">
+				<Spinner className="h-3.5 w-3.5" label="Indexing endpoints" />
+				Indexing endpoints…
 			</span>
 		) : hasDoc ? (
 			<>

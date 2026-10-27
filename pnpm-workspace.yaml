@@ -1,0 +1,3 @@
+allowBuilds:
+  # Next.js ships prebuilt @img/sharp-* binaries; sharp's install script is not needed.
+  sharp: false

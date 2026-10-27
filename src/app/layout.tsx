@@ -1,7 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { PreferencesProvider } from "@/components/layout/PreferencesProvider";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { AppShell } from "@/components/layout/AppShell";
+import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 import "./globals.css";
 
@@ -18,9 +20,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-	title: "Ponie — API developer tools",
+	title: "Ponie — developer toolkit",
 	description:
-		"A terminal-native suite for minifying, comparing, and diffing OpenAPI specs and permissions.",
+		"A terminal-native toolkit: minify and diff OpenAPI specs, compare permission sets across role groups, and format JSON, convert epoch timestamps and px ↔ rem — all in the browser.",
 	icons: {
 		icon: [
 			{ url: "/favicon.ico", sizes: "any" },
@@ -30,6 +32,14 @@ export const metadata: Metadata = {
 		apple: "/apple-touch-icon.png",
 	},
 	manifest: "/site.webmanifest",
+};
+
+// Browser/PWA chrome colour: the `--ink` page background of each theme (globals.css).
+export const viewport: Viewport = {
+	themeColor: [
+		{ media: "(prefers-color-scheme: light)", color: "#F4F6FA" },
+		{ media: "(prefers-color-scheme: dark)", color: "#0B0E14" },
+	],
 };
 
 export default function RootLayout({
@@ -51,10 +61,13 @@ export default function RootLayout({
 			</head>
 			<body>
 				<ThemeProvider>
-					<ToastProvider>
-						<AppShell>{children}</AppShell>
-					</ToastProvider>
+					<PreferencesProvider>
+						<ToastProvider>
+							<AppShell>{children}</AppShell>
+						</ToastProvider>
+					</PreferencesProvider>
 				</ThemeProvider>
+				<ServiceWorkerRegister />
 			</body>
 		</html>
 	);

@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useToast } from "@/components/ui/ToastProvider";
+import { useCopy } from "@/components/ui/useCopy";
 import { SAMPLE_GROUP_1_JSON, SAMPLE_GROUP_2_JSON } from "../_constants/samples";
-import { copyText } from "../_lib/copyToClipboard";
 import { formatPermissionShortList, type PermissionCopyFormat } from "../_lib/formatPermissionShortList";
 import { parseAndCompare } from "../_lib/parsePermissions";
 import type { CompareResult, PermissionEntry, SectionId } from "../types";
+import { usePermissionDiffCommands } from "./usePermissionDiffCommands";
 
 export type AllGroupView = "group1" | "group2";
 
@@ -16,7 +16,7 @@ const initialOpenSections: Record<SectionId, boolean> = {
 };
 
 export function usePermissionDiff() {
-	const { toast } = useToast();
+	const copy = useCopy();
 	const [group1RawJson, setGroup1RawJson] = useState("");
 	const [group2RawJson, setGroup2RawJson] = useState("");
 	const [searchQuery, setSearchQuery] = useState("");
@@ -65,20 +65,15 @@ export function usePermissionDiff() {
 		format: PermissionCopyFormat,
 		moduleLabel: string
 	) => {
-		try {
-			const payload =
-				format === "full"
-					? JSON.stringify(
-							items.map((item) => item.raw),
-							null,
-							2
-						)
-					: formatPermissionShortList(moduleLabel, items);
-			await copyText(payload);
-			toast(format === "full" ? "Copied JSON" : "Copied short list", "success");
-		} catch {
-			toast("Copy failed", "error");
-		}
+		const payload =
+			format === "full"
+				? JSON.stringify(
+						items.map((item) => item.raw),
+						null,
+						2
+					)
+				: formatPermissionShortList(moduleLabel, items);
+		await copy(payload, format === "full" ? "Copied JSON" : "Copied short list");
 	};
 
 	const handleCopyText = async (
@@ -87,16 +82,11 @@ export function usePermissionDiff() {
 		format: PermissionCopyFormat,
 		moduleLabel: string
 	) => {
-		try {
-			const payload =
-				format === "full"
-					? items.map((item) => `[${item.action || item.type}] ${item.resource}`).join("\n")
-					: formatPermissionShortList(moduleLabel, items);
-			await copyText(payload);
-			toast(format === "full" ? "Copied text list" : "Copied short list", "success");
-		} catch {
-			toast("Copy failed", "error");
-		}
+		const payload =
+			format === "full"
+				? items.map((item) => `[${item.action || item.type}] ${item.resource}`).join("\n")
+				: formatPermissionShortList(moduleLabel, items);
+		await copy(payload, format === "full" ? "Copied text list" : "Copied short list");
 	};
 
 	const loadSample = () => {
@@ -104,6 +94,15 @@ export function usePermissionDiff() {
 		setGroup2RawJson(SAMPLE_GROUP_2_JSON);
 		setError(null);
 	};
+
+	usePermissionDiffCommands({
+		group1RawJson,
+		group2RawJson,
+		setGroup1RawJson,
+		setGroup2RawJson,
+		handleCompare,
+		loadSample,
+	});
 
 	return {
 		group1RawJson,

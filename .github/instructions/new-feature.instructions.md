@@ -26,7 +26,7 @@ src/app/<feature-slug>/
 4. Create `types.ts` if the feature has domain types
 5. Create components in `_components/`
 6. Create `page.tsx` with default export and `"use client"` directive
-7. Add nav item in `src/components/layout/constants/nav-items.ts`
+7. Add nav item in `src/components/layout/constants/nav-items.ts` (`API_TOOL_NAV_ITEMS` or `UTILITY_NAV_ITEMS`; the sidebar and Home render both groups)
 
 ## Page Component Template
 
@@ -64,8 +64,8 @@ export default <Feature>Page;
 // src/components/layout/constants/nav-items.ts
 import { IconName } from "lucide-react";
 
-// Add to WORKSPACE_NAV_ITEMS array:
-{ href: "/<feature-slug>", label: "Feature Name", icon: IconName },
+// Add to API_TOOL_NAV_ITEMS (OpenAPI / permission tools) or UTILITY_NAV_ITEMS (converters, formatters):
+{ href: "/<feature-slug>", label: "Feature Name", description: "One-line summary", icon: IconName },
 ```
 
 ## Notes

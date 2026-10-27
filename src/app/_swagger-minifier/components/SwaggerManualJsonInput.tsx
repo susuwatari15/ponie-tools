@@ -2,12 +2,18 @@
 
 import { ClipboardPaste, FileUp, Upload } from "lucide-react";
 import { type ChangeEvent, type DragEvent, type FC, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/components/ui/cn";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/ui/ToastProvider";
 import type { SwaggerProfile } from "@/lib/swaggerProfilesStorage";
-import { SaveSnapshotForm } from "./SaveSnapshotForm";
+/** Pulls in react-hook-form + zod, and only shows once a spec is pasted. */
+const SaveSnapshotForm = dynamic(
+  () => import("./SaveSnapshotForm").then((mod) => mod.SaveSnapshotForm),
+  { loading: () => <Skeleton className="mt-3 h-[60px]" /> },
+);
 
 /** A paste that is nothing but one http(s) URL. */
 const SINGLE_URL = /^https?:\/\/\S+$/i;

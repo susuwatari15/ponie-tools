@@ -1,6 +1,6 @@
 import { fetchSwaggerViaExtension } from "./swaggerExtensionBridge";
 import { fetchSwaggerFromUrl } from "./swaggerMinifier";
-import type { SwaggerProfile } from "./swaggerProfilesStorage";
+import { needsSessionPassword, type SwaggerProfile } from "./swaggerProfilesStorage";
 
 export type SwaggerFetchResult = { ok: true; rawJson: string } | { ok: false; error: string };
 
@@ -10,11 +10,19 @@ export type SwaggerFetchResult = { ok: true; rawJson: string } | { ok: false; er
  * Extension failures that the proxy may still get past fall back to it.
  */
 export async function fetchSwaggerForProfile(
-	profile: Pick<SwaggerProfile, "url" | "username" | "password">,
+	profile: Pick<SwaggerProfile, "url" | "username" | "password" | "askPassword">,
 	useExtension: boolean,
 ): Promise<SwaggerFetchResult> {
 	if (!profile.url.trim()) {
 		return { ok: false, error: "Select a profile with a Swagger URL first." };
+	}
+	// The extension can still get in with the browser session; the server route can't.
+	if (!useExtension && needsSessionPassword(profile)) {
+		return {
+			ok: false,
+			error:
+				"This profile doesn't store its password. Enter it for this session in the Minifier's URL form, then retry.",
+		};
 	}
 
 	try {

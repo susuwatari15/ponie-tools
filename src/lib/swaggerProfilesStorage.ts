@@ -14,8 +14,16 @@ export type SwaggerProfile = {
 	color: string;
 	url: string;
 	username: string;
+	/**
+	 * With `askPassword` this is only the in-memory session copy (see
+	 * `setSessionPassword`) — it is never written to IndexedDB.
+	 */
 	password: string;
+	/** "Don't store password, ask each session." */
+	askPassword?: boolean;
 };
+
+export type ProfileInput = Omit<SwaggerProfile, "id">;
 
 /** Preset palette for profile colors (hex). */
 export const PROFILE_COLORS = [
@@ -31,7 +39,7 @@ export const PROFILE_COLORS = [
 
 export const DEFAULT_PROFILE_COLOR: string = PROFILE_COLORS[0];
 
-function isProfile(item: unknown): item is SwaggerProfile {
+export function isProfile(item: unknown): item is SwaggerProfile {
 	return (
 		typeof item === "object" &&
 		item !== null &&
@@ -46,28 +54,59 @@ function isProfile(item: unknown): item is SwaggerProfile {
 
 export type ProfileWriteError = "quota" | "unknown";
 
+/**
+ * Passwords of `askPassword` profiles, kept for this page session only (module
+ * memory survives client-side navigation, not a reload).
+ */
+const sessionPasswords = new Map<string, string>();
+
+export function setSessionPassword(id: string, password: string): void {
+	if (password) sessionPasswords.set(id, password);
+	else sessionPasswords.delete(id);
+}
+
+export function clearSessionPasswords(): void {
+	sessionPasswords.clear();
+}
+
+/** True when a profile needs its password entered before a basic-auth fetch. */
+export function needsSessionPassword(
+	profile: Pick<SwaggerProfile, "askPassword" | "username" | "password">,
+): boolean {
+	return Boolean(profile.askPassword && profile.username && !profile.password);
+}
+
+function withSessionPassword(profile: SwaggerProfile): SwaggerProfile {
+	return profile.askPassword
+		? { ...profile, password: sessionPasswords.get(profile.id) ?? "" }
+		: profile;
+}
+
 /** Profiles are stored as a single ordered array under one keyval entry. */
 export async function listProfiles(): Promise<SwaggerProfile[]> {
 	try {
 		const stored = await idbGet<unknown>(KEYVAL_STORE, PROFILES_KEY);
 		if (!Array.isArray(stored)) return [];
-		return stored.filter(isProfile);
+		return stored.filter(isProfile).map(withSessionPassword);
 	} catch {
 		return [];
 	}
 }
 
+/** Moves `askPassword` passwords into session memory and strips them from what is stored. */
 async function writeAll(profiles: SwaggerProfile[]): Promise<void> {
-	await idbPut(KEYVAL_STORE, profiles, PROFILES_KEY);
+	const stored = profiles.map((profile) => {
+		if (!profile.askPassword) {
+			sessionPasswords.delete(profile.id);
+			return profile;
+		}
+		setSessionPassword(profile.id, profile.password);
+		return { ...profile, password: "" };
+	});
+	await idbPut(KEYVAL_STORE, stored, PROFILES_KEY);
 }
 
-export async function addProfile(input: {
-	name: string;
-	color: string;
-	url: string;
-	username: string;
-	password: string;
-}): Promise<
+export async function addProfile(input: ProfileInput): Promise<
 	| { ok: true; profile: SwaggerProfile }
 	| { ok: false; error: ProfileWriteError }
 > {
@@ -78,6 +117,7 @@ export async function addProfile(input: {
 		url: input.url.trim(),
 		username: input.username,
 		password: input.password,
+		...(input.askPassword ? { askPassword: true } : {}),
 	};
 
 	const next = [...(await listProfiles()), profile];
@@ -118,6 +158,7 @@ export async function updateProfile(
 }
 
 export async function removeProfile(id: string): Promise<void> {
+	sessionPasswords.delete(id);
 	const next = (await listProfiles()).filter((p) => p.id !== id);
 	try {
 		await writeAll(next);
