@@ -1,11 +1,11 @@
 "use client";
 
 import type { FC } from "react";
-import { CheckCheck, GitCompare } from "lucide-react";
+import { CheckCheck, FilterX, GitCompare } from "lucide-react";
 import { cn } from "@/components/ui/cn";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SwaggerDiagnosticsPanel } from "@/components/swagger/SwaggerDiagnosticsPanel";
-import type { OpenApiCompareResult } from "@/lib/openApiCompare";
+import type { OpenApiCompareOk, OpenApiCompareResult } from "@/lib/openApiCompare";
 import { endpointDomId } from "../_lib/compareTree";
 import {
 	endpointKey,
@@ -19,7 +19,11 @@ import { CompareResultSection } from "./CompareResultSection";
 import { ChangedEndpointRow, ChangedSchemaRow, focusRing } from "./CompareResultRows";
 
 type SwaggerCompareResultsProps = {
+	/** What is shown — the comparison narrowed by the active filters. */
 	result: OpenApiCompareResult | null;
+	/** The unfiltered comparison, for section totals; also resets the view when it changes. */
+	unfiltered: OpenApiCompareOk | null;
+	onClearFilters: () => void;
 	/** Endpoint picked in the path tree — paged in, expanded and scrolled to. */
 	focusRequest: FocusRequest | null;
 	/** Endpoints ticked for copying — owned by the panel. */
@@ -29,18 +33,20 @@ type SwaggerCompareResultsProps = {
 
 export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 	result,
+	unfiltered,
+	onClearFilters,
 	focusRequest,
 	checkedEndpointIds,
 	onToggleEndpoint,
 }) => {
-	const view = useCompareResultsView(result, focusRequest);
+	const view = useCompareResultsView(result, focusRequest, unfiltered ?? result);
 
 	if (!result) {
 		return (
 			<EmptyState
 				icon={GitCompare}
 				title="No comparison yet"
-				description="Select two snapshots and hit Compare to see added, removed, and changed endpoints."
+				description="Pick a baseline (A) and a version to compare against (B) — a saved snapshot, a live fetch, pasted JSON or the Minifier's spec — then hit Compare."
 			/>
 		);
 	}
@@ -69,6 +75,10 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 	} = result;
 
 	const noDiff = added.length === 0 && removed.length === 0 && changed.length === 0;
+	const allHidden =
+		noDiff &&
+		unfiltered !== null &&
+		unfiltered.added.length + unfiltered.removed.length + unfiltered.changed.length > 0;
 
 	// An endpoint that shares its definition with another route isn't reliably
 	// described by its own diff — flag it rather than let it read as a real change.
@@ -79,10 +89,18 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 				?.some((issue) => issue.code === "duplicate-operation-body"),
 		);
 
+	const sectionTotals: Record<ResultSection, number | undefined> = {
+		removed: unfiltered?.removed.length,
+		added: unfiltered?.added.length,
+		schemas: unfiltered?.changedSchemas.length,
+		changed: unfiltered?.changed.length,
+	};
+
 	const paging = (section: ResultSection, count: number) => {
 		const { start, end } = view.rowWindow(section);
 		return {
 			count,
+			total: sectionTotals[section],
 			start: Math.min(start, count),
 			end: Math.min(end, count),
 			onShowPrevious: () => view.showPrevious(section),
@@ -230,11 +248,26 @@ export const SwaggerCompareResults: FC<SwaggerCompareResultsProps> = ({
 				</CompareResultSection>
 			) : null}
 
-			{noDiff ? (
+			{allHidden ? (
+				<EmptyState
+					icon={FilterX}
+					title="Nothing matches the filters"
+					description="Every difference is hidden by the active filters."
+					action={
+						<button
+							type="button"
+							onClick={onClearFilters}
+							className="text-xs font-medium text-accent hover:underline"
+						>
+							Clear filters
+						</button>
+					}
+				/>
+			) : noDiff ? (
 				<EmptyState
 					icon={CheckCheck}
 					title="No differences"
-					description="The two snapshots share the same minified request/response shape."
+					description="Both specs share the same minified request/response shape."
 				/>
 			) : null}
 		</div>

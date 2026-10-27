@@ -51,11 +51,18 @@ function initialExpanded(result: OpenApiCompareResult | null): Set<string> {
 	return keys;
 }
 
+/**
+ * `result` is what is shown (possibly filtered); `resetKey` is the unfiltered
+ * comparison. A new comparison resets the whole view, a filter change only
+ * the paging, so expanded rows survive refining the filters.
+ */
 export function useCompareResultsView(
 	result: OpenApiCompareResult | null,
 	focusRequest: FocusRequest | null,
+	resetKey: unknown = result,
 ) {
 	const [prevResult, setPrevResult] = useState(result);
+	const [prevResetKey, setPrevResetKey] = useState(resetKey);
 	const [prevFocus, setPrevFocus] = useState(focusRequest);
 	const [windows, setWindows] = useState(INITIAL_WINDOWS);
 	const [expanded, setExpanded] = useState(() => initialExpanded(result));
@@ -102,11 +109,15 @@ export function useCompareResultsView(
 	};
 
 	// A new comparison starts from a clean view.
-	if (result !== prevResult) {
+	if (resetKey !== prevResetKey) {
+		setPrevResetKey(resetKey);
 		setPrevResult(result);
 		setWindows(INITIAL_WINDOWS);
 		setExpanded(initialExpanded(result));
 		setFocusedKey(null);
+	} else if (result !== prevResult) {
+		setPrevResult(result);
+		setWindows(INITIAL_WINDOWS);
 	}
 
 	if (focusRequest !== prevFocus) {

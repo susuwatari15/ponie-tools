@@ -1,4 +1,4 @@
-import type { CompressedSchema, MinifiedOperation } from "../types/openapi";
+import type { CompressedSchema, EndpointItem, MinifiedOperation } from "../types/openapi";
 import {
 	buildEndpointIndex,
 	getMinifiedOperationForEndpoint,
@@ -23,12 +23,15 @@ export type SwaggerCopyFormat = "full" | "minified";
 export type EndpointPresence = {
 	id: string;
 	summary: string;
+	tags: string[];
 };
 
 export type ChangedEndpointDiff = {
 	id: string;
 	summaryA: string;
 	summaryB: string;
+	/** Tags from both versions, deduplicated. */
+	tags: string[];
 	/** Minified operation with `$ref`s kept as names — see `changedSchemas` for those. */
 	left: MinifiedOperation | undefined;
 	right: MinifiedOperation | undefined;
@@ -36,6 +39,8 @@ export type ChangedEndpointDiff = {
 	ownChanged: boolean;
 	/** Changed schemas behind this endpoint's diff, sorted by name. */
 	viaSchemas: string[];
+	/** Only `summary` / `description` / `example(s)` differ, here and in every schema behind it. */
+	docsOnly: boolean;
 };
 
 export type SchemaChangeStatus = "added" | "removed" | "changed";
@@ -48,6 +53,8 @@ export type ChangedSchemaDiff = {
 	right: CompressedSchema | undefined;
 	/** Changed endpoints whose diff this schema contributes to. */
 	affectedEndpointIds: string[];
+	/** Only `description` / `example(s)` differ. */
+	docsOnly: boolean;
 };
 
 export type OpenApiCompareResult =
@@ -74,6 +81,57 @@ export type OpenApiCompareOk = Extract<OpenApiCompareResult, { ok: true }>;
 function stableSerialize(value: unknown): string {
 	return JSON.stringify(value ?? null);
 }
+
+const DOC_KEYS = new Set(["description", "summary", "example", "examples"]);
+
+/**
+ * Copy of a minified schema without its documentation keys. Walks the shape
+ * structurally, so a property *named* `description` is kept.
+ */
+function stripSchemaDocs(schema: CompressedSchema | undefined): unknown {
+	if (!schema || typeof schema !== "object") return schema;
+	const out: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(schema)) {
+		if (DOC_KEYS.has(key)) continue;
+		if (key === "properties" && value && typeof value === "object") {
+			out[key] = Object.fromEntries(
+				Object.entries(value as Record<string, CompressedSchema>).map(([name, child]) => [
+					name,
+					stripSchemaDocs(child),
+				]),
+			);
+		} else if ((key === "items" || key === "additionalProperties") && typeof value === "object") {
+			out[key] = stripSchemaDocs(value as CompressedSchema);
+		} else {
+			out[key] = value;
+		}
+	}
+	return out;
+}
+
+function stripOperationDocs(op: MinifiedOperation | undefined): unknown {
+	if (!op) return op;
+	const { request, response, ...rest } = op;
+	delete rest.summary;
+	delete rest.description;
+	const strippedRequest = request
+		? Object.fromEntries(
+				Object.entries(request).map(([location, value]) => [
+					location,
+					location === "body"
+						? stripSchemaDocs(value as CompressedSchema)
+						: Object.fromEntries(
+								Object.entries(value as Record<string, CompressedSchema>).map(
+									([name, param]) => [name, stripSchemaDocs(param)],
+								),
+							),
+				]),
+			)
+		: undefined;
+	return { ...rest, request: strippedRequest, response: stripSchemaDocs(response) };
+}
+
+const tagsOf = (endpoints: EndpointItem[]) => new Map(endpoints.map((e) => [e.id, e.tags]));
 
 /**
  * For each schema whose inlined form changed, the root-cause schemas (own
@@ -136,18 +194,22 @@ export function compareOpenApiRawJson(
 	const docA = parsedA.doc;
 	const docB = parsedB.doc;
 
-	const summariesA = new Map(buildEndpointIndex(docA).map((e) => [e.id, e.summary]));
-	const summariesB = new Map(buildEndpointIndex(docB).map((e) => [e.id, e.summary]));
+	const endpointsA = buildEndpointIndex(docA);
+	const endpointsB = buildEndpointIndex(docB);
+	const summariesA = new Map(endpointsA.map((e) => [e.id, e.summary]));
+	const summariesB = new Map(endpointsB.map((e) => [e.id, e.summary]));
+	const tagsA = tagsOf(endpointsA);
+	const tagsB = tagsOf(endpointsB);
 
 	const added: EndpointPresence[] = [];
 	const removed: EndpointPresence[] = [];
 	const changed: ChangedEndpointDiff[] = [];
 
 	for (const [id, summary] of summariesB) {
-		if (!summariesA.has(id)) added.push({ id, summary });
+		if (!summariesA.has(id)) added.push({ id, summary, tags: tagsB.get(id) ?? [] });
 	}
 	for (const [id, summary] of summariesA) {
-		if (!summariesB.has(id)) removed.push({ id, summary });
+		if (!summariesB.has(id)) removed.push({ id, summary, tags: tagsA.get(id) ?? [] });
 	}
 
 	// Each named schema is minified and fingerprinted once per side; endpoints
@@ -165,6 +227,19 @@ export function compareOpenApiRawJson(
 	);
 	const causes = changeCauses(indexA, indexB, effective, rootCauses);
 	const affected = new Map<string, string[]>();
+	// A schema present on one side only is a real change, even if it is undocumented.
+	const schemaDocsOnly = new Map(
+		rootCauses.map((name) => {
+			const left = indexA.shallow.get(name);
+			const right = indexB.shallow.get(name);
+			return [
+				name,
+				left !== undefined &&
+					right !== undefined &&
+					stableSerialize(stripSchemaDocs(left)) === stableSerialize(stripSchemaDocs(right)),
+			];
+		}),
+	);
 
 	for (const [id, summaryA] of summariesA) {
 		if (!summariesB.has(id)) continue;
@@ -186,14 +261,23 @@ export function compareOpenApiRawJson(
 			affected.set(cause, ids);
 		}
 
+		const ownChanged = stableSerialize(opA) !== stableSerialize(opB);
+		const ownDocsOnly =
+			!ownChanged ||
+			stableSerialize(stripOperationDocs(opA)) === stableSerialize(stripOperationDocs(opB));
 		changed.push({
 			id,
 			summaryA,
 			summaryB: summariesB.get(id) ?? "",
+			tags: [...new Set([...(tagsA.get(id) ?? []), ...(tagsB.get(id) ?? [])])],
 			left: opA,
 			right: opB,
-			ownChanged: stableSerialize(opA) !== stableSerialize(opB),
+			ownChanged,
 			viaSchemas: [...via].sort((a, b) => a.localeCompare(b)),
+			docsOnly:
+				(ownChanged || via.size > 0) &&
+				ownDocsOnly &&
+				[...via].every((name) => schemaDocsOnly.get(name) === true),
 		});
 	}
 
@@ -210,6 +294,7 @@ export function compareOpenApiRawJson(
 			left: indexA.shallow.get(name),
 			right: indexB.shallow.get(name),
 			affectedEndpointIds,
+			docsOnly: schemaDocsOnly.get(name) === true,
 		}))
 		.sort(
 			(a, b) =>

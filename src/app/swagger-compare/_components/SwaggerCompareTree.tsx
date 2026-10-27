@@ -1,10 +1,9 @@
 "use client";
 
-import { ChevronDown, FolderTree, Search } from "lucide-react";
+import { ChevronDown, FolderTree } from "lucide-react";
 import type { FC } from "react";
 import { useMemo, useState } from "react";
 import { cn } from "@/components/ui/cn";
-import { Input } from "@/components/ui/Input";
 import { MethodBadge } from "@/components/ui/Badge";
 import type { OpenApiCompareResult } from "@/lib/openApiCompare";
 import {
@@ -12,7 +11,6 @@ import {
 	buildCompareEntries,
 	buildCompareTree,
 	defaultExpandedKeys,
-	filterCompareEntries,
 	selectableEndpointIds,
 	type CompareCounts,
 	type CompareStatus,
@@ -216,6 +214,7 @@ const TreeRows: FC<TreeRowsProps> = ({
 );
 
 type SwaggerCompareTreeProps = {
+	/** The comparison as filtered by the toolbar — the tree shows exactly what the results show. */
 	result: OpenApiCompareResult | null;
 	selectedEndpointId?: string | null;
 	onSelectEndpoint: (endpointId: string) => void;
@@ -239,7 +238,6 @@ export const SwaggerCompareTree: FC<SwaggerCompareTreeProps> = ({
 	onSetEndpointsChecked,
 	className,
 }) => {
-	const [query, setQuery] = useState("");
 	const [expanded, setExpanded] = useState<Set<string>>(new Set());
 	const [prevResult, setPrevResult] = useState<OpenApiCompareResult | null>(null);
 
@@ -248,27 +246,13 @@ export const SwaggerCompareTree: FC<SwaggerCompareTreeProps> = ({
 		[result],
 	);
 
-	const baseRoots = useMemo(() => buildCompareTree(entries), [entries]);
+	const roots = useMemo(() => buildCompareTree(entries), [entries]);
 
-	// Reset search + expansion whenever a new comparison arrives.
+	// Reset expansion whenever a new comparison or filter arrives — small trees open fully.
 	if (result !== prevResult) {
 		setPrevResult(result);
-		setQuery("");
-		setExpanded(new Set(defaultExpandedKeys(baseRoots)));
+		setExpanded(new Set(defaultExpandedKeys(roots)));
 	}
-
-	const filtering = query.trim().length > 0;
-	const roots = useMemo(
-		() =>
-			filtering ? buildCompareTree(filterCompareEntries(entries, query)) : baseRoots,
-		[filtering, entries, query, baseRoots],
-	);
-
-	// While filtering, show every surviving branch.
-	const effectiveExpanded = useMemo(
-		() => (filtering ? new Set(allFolderKeys(roots)) : expanded),
-		[filtering, roots, expanded],
-	);
 
 	const toggle = (key: string) =>
 		setExpanded((prev) => {
@@ -278,16 +262,15 @@ export const SwaggerCompareTree: FC<SwaggerCompareTreeProps> = ({
 			return next;
 		});
 
-	// Respects the filter, so "Tick shown" works as a search-then-select flow.
+	// Respects the filters, so "Tick shown" works as a filter-then-select flow.
 	const shownSelectableIds = useMemo(() => selectableEndpointIds(roots), [roots]);
 
-	const totalLeaves = entries.length;
 	const shownLeaves = roots.reduce(
 		(sum: number, node: CompareTreeFolder) => sum + node.total,
 		0,
 	);
 
-	if (!result?.ok || totalLeaves === 0) return null;
+	if (!result?.ok || shownLeaves === 0) return null;
 
 	return (
 		<aside
@@ -305,7 +288,7 @@ export const SwaggerCompareTree: FC<SwaggerCompareTreeProps> = ({
 				<div className="flex items-center gap-2 text-[10px]">
 					<button
 						type="button"
-						onClick={() => setExpanded(new Set(allFolderKeys(baseRoots)))}
+						onClick={() => setExpanded(new Set(allFolderKeys(roots)))}
 						className="font-medium text-accent hover:underline"
 					>
 						Expand
@@ -321,17 +304,8 @@ export const SwaggerCompareTree: FC<SwaggerCompareTreeProps> = ({
 				</div>
 			</div>
 
-			<div className="flex flex-col gap-2 border-b border-line px-3 py-2">
-				<Input
-					value={query}
-					onChange={(e) => setQuery(e.target.value)}
-					placeholder="Filter paths…"
-					icon={<Search className="h-3.5 w-3.5" />}
-					mono
-					className="py-1.5 text-xs"
-					aria-label="Filter paths"
-				/>
-				{shownSelectableIds.length > 0 ? (
+			{shownSelectableIds.length > 0 ? (
+				<div className="border-b border-line px-3 py-2">
 					<div className="flex items-center gap-2 text-[10px] text-muted">
 						<span>
 							<span className="font-mono text-accent">
@@ -355,27 +329,21 @@ export const SwaggerCompareTree: FC<SwaggerCompareTreeProps> = ({
 							Untick
 						</button>
 					</div>
-				) : null}
-			</div>
+				</div>
+			) : null}
 
 			<div className="scroll-ide min-h-0 flex-1 overflow-y-auto px-1.5 py-2">
-				{shownLeaves === 0 ? (
-					<p className="px-2 py-4 text-center text-xs text-muted">
-						No path matches “{query.trim()}”.
-					</p>
-				) : (
-					<TreeRows
-						nodes={roots}
-						depth={0}
-						expanded={effectiveExpanded}
-						onToggle={toggle}
-						selectedEndpointId={selectedEndpointId}
-						onSelectEndpoint={onSelectEndpoint}
-						checkedEndpointIds={checkedEndpointIds}
-						onToggleEndpoint={onToggleEndpoint}
-						onSetEndpointsChecked={onSetEndpointsChecked}
-					/>
-				)}
+				<TreeRows
+					nodes={roots}
+					depth={0}
+					expanded={expanded}
+					onToggle={toggle}
+					selectedEndpointId={selectedEndpointId}
+					onSelectEndpoint={onSelectEndpoint}
+					checkedEndpointIds={checkedEndpointIds}
+					onToggleEndpoint={onToggleEndpoint}
+					onSetEndpointsChecked={onSetEndpointsChecked}
+				/>
 			</div>
 		</aside>
 	);

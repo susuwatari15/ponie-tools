@@ -13,6 +13,8 @@ const toneClasses: Record<SectionTone, string> = {
 type CompareResultSectionProps = {
 	title: string;
 	count: number;
+	/** Unfiltered row count; shown as `count/total` while filters hide some rows. */
+	total?: number;
 	tone: SectionTone;
 	/** Rendered rows are `[start, end)`; paging bars appear for whatever lies outside. */
 	start: number;
@@ -30,6 +32,7 @@ type CompareResultSectionProps = {
 export const CompareResultSection: FC<CompareResultSectionProps> = ({
 	title,
 	count,
+	total,
 	tone,
 	start,
 	end,
@@ -60,8 +63,14 @@ export const CompareResultSection: FC<CompareResultSectionProps> = ({
 			<div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
 				<h3 className={cn("flex items-center gap-2 text-sm font-semibold", toneClasses[tone])}>
 					{title}
-					<span className="rounded-full border border-current/30 px-2 py-0.5 text-xs">
+					<span
+						className="rounded-full border border-current/30 px-2 py-0.5 text-xs"
+						title={total !== undefined && total !== count ? `${count} of ${total} shown` : undefined}
+					>
 						{count}
+						{total !== undefined && total !== count ? (
+							<span className="opacity-60">/{total}</span>
+						) : null}
 					</span>
 				</h3>
 				{onExpandAll && onCollapseAll ? (

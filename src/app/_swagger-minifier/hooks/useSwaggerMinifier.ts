@@ -10,7 +10,6 @@ import type { EndpointItem, HttpMethod, OpenApiDocument } from "@/types/openapi"
 import {
 	buildEndpointIndex,
 	DEFAULT_MINIFY_OPTIONS,
-	fetchSwaggerFromUrl,
 	minifySwaggerWithOptions,
 	type MinifyOptions,
 } from "@/lib/swaggerMinifier";
@@ -45,10 +44,8 @@ import {
 } from "@/lib/swaggerSelectionStorage";
 import { decodeSelection, encodeSelection } from "@/lib/selectionShareCode";
 import { estimateSize } from "@/lib/tokenEstimate";
-import {
-	fetchSwaggerViaExtension,
-	isExtensionAvailable,
-} from "@/lib/swaggerExtensionBridge";
+import { isExtensionAvailable } from "@/lib/swaggerExtensionBridge";
+import { fetchSwaggerForProfile } from "@/lib/swaggerFetch";
 import {
 	addProfile,
 	listProfiles,
@@ -550,51 +547,10 @@ export function useSwaggerMinifier(
 
 		setUrlFetchError("");
 		setIsFetchingUrl(true);
-
-		try {
-			if (extensionAvailable) {
-				const result = await fetchSwaggerViaExtension(
-					selectedProfile.url,
-					selectedProfile.username,
-					selectedProfile.password,
-				);
-				if (result.ok) {
-					setRawJson(JSON.stringify(JSON.parse(result.data), null, 2));
-				} else if (result.code === "NOT_AUTHENTICATED") {
-					setUrlFetchError(
-						"Not logged in to the API domain. Use \"Open in browser\" to log in, then retry.",
-					);
-				} else if (
-					result.code === "URL_NOT_ALLOWED" ||
-					result.code === "BRIDGE_ERROR" ||
-					result.code === "TIMEOUT"
-				) {
-					const fetchedJson = await fetchSwaggerFromUrl(
-						selectedProfile.url,
-						selectedProfile.username,
-						selectedProfile.password,
-					);
-					setRawJson(fetchedJson);
-				} else {
-					console.error("Error fetching swagger via extension:", result);
-					setUrlFetchError(result.message);
-				}
-			} else {
-				const fetchedJson = await fetchSwaggerFromUrl(
-					selectedProfile.url,
-					selectedProfile.username,
-					selectedProfile.password,
-				);
-				setRawJson(fetchedJson);
-			}
-		} catch (error) {
-			const message =
-				error instanceof Error ? error.message : "Failed to fetch swagger from URL.";
-			console.error("Error fetching swagger from URL:", error);
-			setUrlFetchError(message);
-		} finally {
-			setIsFetchingUrl(false);
-		}
+		const result = await fetchSwaggerForProfile(selectedProfile, extensionAvailable);
+		if (result.ok) setRawJson(result.rawJson);
+		else setUrlFetchError(result.error);
+		setIsFetchingUrl(false);
 	};
 
 	return {

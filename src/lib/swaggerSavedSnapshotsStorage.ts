@@ -29,12 +29,12 @@ function isSnapshot(item: unknown): item is SavedSnapshot {
 	);
 }
 
-/** Oldest first (by createdAt), preserving the legacy insertion order. */
+/** Newest first (by createdAt). */
 export async function listSnapshots(): Promise<SavedSnapshot[]> {
 	try {
 		const all = (await idbGetAll<SavedSnapshot>(SNAPSHOTS_STORE)).filter(isSnapshot);
 		return all.sort(
-			(a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+			(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
 		);
 	} catch {
 		return [];
@@ -70,13 +70,45 @@ export async function addSnapshot(input: {
 }
 
 export async function removeSnapshot(id: string): Promise<void> {
+	await removeSnapshots([id]);
+}
+
+/** Deletes several snapshots (metadata + spec text) in one transaction. */
+export async function removeSnapshots(ids: string[]): Promise<void> {
+	if (ids.length === 0) return;
 	try {
 		await idbWrite([SNAPSHOTS_STORE, SNAPSHOT_JSON_STORE], (tx) => {
-			tx.objectStore(SNAPSHOTS_STORE).delete(id);
-			tx.objectStore(SNAPSHOT_JSON_STORE).delete(id);
+			for (const id of ids) {
+				tx.objectStore(SNAPSHOTS_STORE).delete(id);
+				tx.objectStore(SNAPSHOT_JSON_STORE).delete(id);
+			}
 		});
 	} catch {
 		// ignore
+	}
+}
+
+/** Patches a snapshot's metadata. Resolves false when it is missing or can't be written. */
+export async function updateSnapshot(
+	id: string,
+	patch: { name?: string },
+): Promise<boolean> {
+	let found = false;
+	try {
+		await idbWrite([SNAPSHOTS_STORE], (tx) => {
+			const store = tx.objectStore(SNAPSHOTS_STORE);
+			const request = store.get(id);
+			request.onsuccess = () => {
+				if (!isSnapshot(request.result)) return;
+				found = true;
+				const next: SavedSnapshot = { ...request.result };
+				if (patch.name !== undefined) next.name = patch.name.trim();
+				store.put(next);
+			};
+		});
+		return found;
+	} catch {
+		return false;
 	}
 }
 
@@ -90,15 +122,11 @@ export async function getSnapshotJson(id: string): Promise<string | undefined> {
 	}
 }
 
-/** Newest snapshot first. Returns baseline (older) and latest (newer) ids for compare. */
+/** Returns baseline (older) and latest (newer) ids of the two newest snapshots. */
 export async function getLatestTwoSnapshotIdsForCompare(): Promise<
 	{ versionA: string; versionB: string } | null
 > {
-	const sorted = (await listSnapshots()).slice().sort((a, b) => {
-		const tb = new Date(b.createdAt).getTime();
-		const ta = new Date(a.createdAt).getTime();
-		return tb - ta;
-	});
+	const sorted = await listSnapshots();
 	if (sorted.length < 2) return null;
 	return { versionA: sorted[1].id, versionB: sorted[0].id };
 }

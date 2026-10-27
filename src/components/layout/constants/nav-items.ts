@@ -28,7 +28,7 @@ export const TOOL_NAV_ITEMS: NavItem[] = [
 	{
 		href: "/swagger-compare",
 		label: "Swagger Compare",
-		description: "Diff two saved snapshots",
+		description: "Diff snapshots, live or pasted specs",
 		icon: GitCompare,
 	},
 	{

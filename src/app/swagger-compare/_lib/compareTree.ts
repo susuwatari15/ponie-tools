@@ -74,20 +74,6 @@ export function buildCompareEntries(result: OpenApiCompareOk): CompareEntry[] {
 	return entries;
 }
 
-export function filterCompareEntries(
-	entries: CompareEntry[],
-	query: string,
-): CompareEntry[] {
-	const q = query.trim().toLowerCase();
-	if (!q) return entries;
-	return entries.filter(
-		(e) =>
-			e.path.toLowerCase().includes(q) ||
-			e.method.includes(q) ||
-			e.summary.toLowerCase().includes(q),
-	);
-}
-
 type DraftFolder = {
 	label: string;
 	path: string;
