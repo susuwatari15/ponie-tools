@@ -1,15 +1,33 @@
 "use client";
 
 import type { FC } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { getLatestTwoSnapshotIdsForCompare } from "@/lib/swaggerSavedSnapshotsStorage";
 import SwaggerMinifier from "../_swagger-minifier/components/SwaggerMinifier";
-import { useSwaggerMinifier } from "../_swagger-minifier/hooks/useSwaggerMinifier";
+import {
+	type SwaggerMinifierSharedLink,
+	useSwaggerMinifier,
+} from "../_swagger-minifier/hooks/useSwaggerMinifier";
 
-const SwaggerMinifierPage: FC = () => {
-	const m = useSwaggerMinifier("");
+const SwaggerMinifierContent: FC = () => {
 	const router = useRouter();
+	const searchParams = useSearchParams();
+
+	// A shared `?p=&sel=` link is read once; the controller applies it over the
+	// persisted state, and the params are then dropped from the address bar.
+	const [sharedLink] = useState<SwaggerMinifierSharedLink>(() => ({
+		profileId: searchParams.get("p"),
+		selectionCode: searchParams.get("sel"),
+	}));
+	const m = useSwaggerMinifier("", sharedLink);
+
+	useEffect(() => {
+		if (sharedLink.profileId || sharedLink.selectionCode) {
+			router.replace("/minifier", { scroll: false });
+		}
+	}, [router, sharedLink]);
 
 	const handleCompareToLatestVersion = async () => {
 		const pair = await getLatestTwoSnapshotIdsForCompare();
@@ -37,4 +55,10 @@ const SwaggerMinifierPage: FC = () => {
 	);
 };
 
-export default SwaggerMinifierPage;
+export default function SwaggerMinifierPage() {
+	return (
+		<Suspense>
+			<SwaggerMinifierContent />
+		</Suspense>
+	);
+}

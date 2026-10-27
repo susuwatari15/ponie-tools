@@ -48,6 +48,9 @@ type SwaggerUrlFetchFormProps = {
     patch: Partial<Omit<SwaggerProfile, "id">>,
   ) => Promise<ProfileWriteResult>;
   onDeleteProfile: (id: string) => void;
+  /** A pasted URL with no matching profile; opens the profile form prefilled. */
+  pendingProfileUrl: string | null;
+  onClearPendingProfileUrl: () => void;
 };
 
 export const SwaggerUrlFetchForm: FC<SwaggerUrlFetchFormProps> = ({
@@ -63,8 +66,16 @@ export const SwaggerUrlFetchForm: FC<SwaggerUrlFetchFormProps> = ({
   onCreateProfile,
   onEditProfile,
   onDeleteProfile,
+  pendingProfileUrl,
+  onClearPendingProfileUrl,
 }) => {
   const [isManagerOpen, setIsManagerOpen] = useState(false);
+  const showManager = isManagerOpen || Boolean(pendingProfileUrl);
+
+  const closeManager = () => {
+    setIsManagerOpen(false);
+    onClearPendingProfileUrl();
+  };
 
   const profileUrl = selectedProfile?.url ?? "";
   const username = selectedProfile?.username ?? "";
@@ -175,11 +186,12 @@ export const SwaggerUrlFetchForm: FC<SwaggerUrlFetchFormProps> = ({
         />
       ) : null}
 
-      {isManagerOpen ? (
+      {showManager ? (
         <ProfileManagerModal
           profiles={profiles}
           selectedProfileId={selectedProfile?.id ?? null}
-          onClose={() => setIsManagerOpen(false)}
+          initialUrl={pendingProfileUrl ?? undefined}
+          onClose={closeManager}
           onSelectProfile={onSelectProfile}
           onCreateProfile={onCreateProfile}
           onEditProfile={onEditProfile}

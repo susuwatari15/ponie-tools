@@ -48,6 +48,8 @@ type ProfileManagerModalProps = {
 		patch: Partial<Omit<SwaggerProfile, "id">>,
 	) => Promise<ProfileWriteResult>;
 	onDeleteProfile: (id: string) => void;
+	/** Opens straight into a new-profile form prefilled with this URL. */
+	initialUrl?: string;
 };
 
 const labelClass = "font-mono text-[10px] uppercase tracking-widest text-muted";
@@ -60,6 +62,16 @@ const emptyForm: ProfileFormValues = {
 	password: "",
 };
 
+function formForUrl(url: string): ProfileFormValues {
+	let name = "";
+	try {
+		name = new URL(url).hostname;
+	} catch {
+		// leave the name for the user
+	}
+	return { ...emptyForm, name, url };
+}
+
 export const ProfileManagerModal: FC<ProfileManagerModalProps> = ({
 	profiles,
 	selectedProfileId,
@@ -68,14 +80,15 @@ export const ProfileManagerModal: FC<ProfileManagerModalProps> = ({
 	onCreateProfile,
 	onEditProfile,
 	onDeleteProfile,
+	initialUrl,
 }) => {
 	const [editingId, setEditingId] = useState<string | null>(null);
-	const [isFormOpen, setIsFormOpen] = useState(false);
+	const [isFormOpen, setIsFormOpen] = useState(Boolean(initialUrl));
 	const [submitError, setSubmitError] = useState("");
 
 	const form = useForm<ProfileFormValues>({
 		resolver: zodResolver(profileSchema),
-		defaultValues: emptyForm,
+		defaultValues: initialUrl ? formForUrl(initialUrl) : emptyForm,
 	});
 	const selectedColor = form.watch("color");
 

@@ -24,6 +24,8 @@ export { Spinner } from "./Spinner";
 export { Kbd } from "./Kbd";
 export { Modal } from "./Modal";
 export type { ModalProps } from "./Modal";
+export { Popover } from "./Popover";
+export type { PopoverProps } from "./Popover";
 export { ToastProvider, useToast } from "./ToastProvider";
 export { methodStyle, METHOD_STYLES, HTTP_METHOD_ORDER } from "./methodColors";
 export { ResizeHandle } from "./ResizeHandle";

@@ -3,12 +3,14 @@ import type { FC } from "react";
 import { cn } from "@/components/ui/cn";
 import type { OpenApiDiagnosticsReport } from "@/lib/openApiDiagnostics";
 import { describeDiagnosticCounts } from "@/lib/openApiDiagnostics";
+import { formatBytes, formatTokens, type SizeEstimate } from "@/lib/tokenEstimate";
 
 type SwaggerParseStatusProps = {
 	error: string;
 	endpointCount: number;
 	hasDoc: boolean;
 	diagnostics: OpenApiDiagnosticsReport;
+	fullSpecSize: SizeEstimate | null;
 };
 
 export const SwaggerParseStatus: FC<SwaggerParseStatusProps> = ({
@@ -16,6 +18,7 @@ export const SwaggerParseStatus: FC<SwaggerParseStatusProps> = ({
 	endpointCount,
 	hasDoc,
 	diagnostics,
+	fullSpecSize,
 }) => (
 	<div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
 		{error ? (
@@ -36,6 +39,14 @@ export const SwaggerParseStatus: FC<SwaggerParseStatusProps> = ({
 					<CheckCircle2 className="h-3.5 w-3.5" />
 					{endpointCount} endpoints detected
 				</span>
+				{fullSpecSize ? (
+					<span
+						className="font-mono text-[11px] text-muted"
+						title="Size of the full spec as compact JSON. Tokens are approximate (~4 chars each)."
+					>
+						{formatTokens(fullSpecSize.tokens)} · {formatBytes(fullSpecSize.bytes)}
+					</span>
+				) : null}
 				{diagnostics.diagnostics.length > 0 ? (
 					<span
 						className={cn(

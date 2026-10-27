@@ -10,6 +10,8 @@ import type {
   ParameterObject,
   ResponseObject,
   SchemaObject,
+  SecurityRequirement,
+  SecuritySchemeObject,
 } from '../types/openapi';
 
 export const HTTP_METHODS: HttpMethod[] = [
@@ -118,6 +120,8 @@ export type CompressOptions = {
    * once per endpoint that reaches it.
    */
   inlineRefs?: boolean;
+  /** Skip operations, parameters and properties flagged `deprecated: true`. */
+  dropDeprecated?: boolean;
 };
 
 export const compressSchema = (
@@ -164,6 +168,7 @@ export const compressSchema = (
     const props: Record<string, CompressedSchema> = {};
 
     for (const [name, schema] of Object.entries(input.properties)) {
+      if (options.dropDeprecated && schema.deprecated) continue;
       const propCompressed = compressSchema(schema, doc, options, seen);
       if (propCompressed) {
         if (requiredSet.has(name)) {
@@ -285,6 +290,7 @@ const buildRequest = (
   const request: MinifiedRequest = {};
   for (const parameter of mergedParameters) {
     if (!['path', 'query', 'header', 'cookie'].includes(parameter.in)) continue;
+    if (options.dropDeprecated && parameter.deprecated) continue;
 
     const key = parameter.name;
     const compressed = parameterToCompressed(parameter, doc, options);
@@ -316,6 +322,7 @@ export const buildEndpointIndex = (doc: OpenApiDocument): EndpointItem[] => {
         method,
         path,
         summary: operation.summary ?? operation.operationId ?? '',
+        tags: operation.tags ?? [],
       });
     }
   }
@@ -344,6 +351,7 @@ export const minifySwaggerObject = (
     const pathItem = doc.paths?.[parsed.path];
     const operation = pathItem?.[parsed.method];
     if (!pathItem || !operation) continue;
+    if (options.dropDeprecated && operation.deprecated) continue;
 
     const minifiedOp: MinifiedOperation = {};
 
@@ -394,8 +402,171 @@ export const getMinifiedOperationForEndpoint = (
   return pathItem[parsed.method];
 };
 
-export const minifySwagger = (selectedEndpointIds: string[], doc: OpenApiDocument): string =>
-  JSON.stringify(minifySwaggerObject(selectedEndpointIds, doc), null, 2);
+export type MinifyOptions = {
+  stripDescriptions: boolean;
+  stripExamples: boolean;
+  dropDeprecated: boolean;
+  /** `false` keeps `{ $ref }` in place and emits each named schema once under `schemas`. */
+  inlineRefs: boolean;
+  /** Emit each operation's effective `security` plus the schemes it references. */
+  keepSecuritySchemes: boolean;
+};
+
+export const DEFAULT_MINIFY_OPTIONS: MinifyOptions = {
+  stripDescriptions: false,
+  stripExamples: false,
+  dropDeprecated: false,
+  inlineRefs: true,
+  keepSecuritySchemes: false,
+};
+
+const collectSchemaRefs = (schema: CompressedSchema | undefined, into: Set<string>): void => {
+  if (!schema) return;
+  if (schema.$ref) into.add(schema.$ref);
+  collectSchemaRefs(schema.items, into);
+  for (const property of Object.values(schema.properties ?? {})) collectSchemaRefs(property, into);
+  if (typeof schema.additionalProperties === 'object') {
+    collectSchemaRefs(schema.additionalProperties, into);
+  }
+};
+
+const forEachOperation = (spec: MinifiedSwagger, visit: (op: MinifiedOperation) => void): void => {
+  for (const pathItem of Object.values(spec.paths)) {
+    for (const method of HTTP_METHODS) {
+      const op = pathItem[method];
+      if (op) visit(op);
+    }
+  }
+};
+
+const forEachOperationSchema = (op: MinifiedOperation, visit: (schema: CompressedSchema) => void): void => {
+  for (const group of ['path', 'query', 'header', 'cookie'] as const) {
+    for (const schema of Object.values(op.request?.[group] ?? {})) visit(schema);
+  }
+  if (op.request?.body) visit(op.request.body);
+  if (op.response) visit(op.response);
+};
+
+/** Compresses every named schema reachable from the output's `$ref`s, transitively. */
+const buildReferencedSchemas = (
+  spec: MinifiedSwagger,
+  doc: OpenApiDocument,
+  options: CompressOptions
+): Record<string, CompressedSchema> => {
+  const seen = new Set<string>();
+  forEachOperation(spec, (op) => forEachOperationSchema(op, (schema) => collectSchemaRefs(schema, seen)));
+
+  const schemas: Record<string, CompressedSchema> = {};
+  const queue = Array.from(seen);
+  while (queue.length > 0) {
+    const name = queue.shift() as string;
+    const source = doc.components?.schemas?.[name] ?? doc.definitions?.[name];
+    const compressed = source ? compressSchema(source, doc, options) : undefined;
+    if (!compressed) continue;
+
+    schemas[name] = compressed;
+    const nested = new Set<string>();
+    collectSchemaRefs(compressed, nested);
+    for (const ref of nested) {
+      if (seen.has(ref)) continue;
+      seen.add(ref);
+      queue.push(ref);
+    }
+  }
+
+  return Object.fromEntries(Object.entries(schemas).sort(([a], [b]) => a.localeCompare(b)));
+};
+
+/** Adds each operation's effective `security` and the schemes those requirements name. */
+const attachSecurity = (spec: MinifiedSwagger, doc: OpenApiDocument): void => {
+  const definitions = doc.components?.securitySchemes ?? doc.securityDefinitions ?? {};
+  const used = new Set<string>();
+
+  for (const [path, pathItem] of Object.entries(spec.paths)) {
+    for (const method of HTTP_METHODS) {
+      const op = pathItem[method];
+      if (!op) continue;
+
+      const security: SecurityRequirement[] | undefined = doc.paths?.[path]?.[method]?.security ?? doc.security;
+      if (!security) continue;
+
+      op.security = security;
+      for (const requirement of security) {
+        for (const name of Object.keys(requirement)) used.add(name);
+      }
+    }
+  }
+
+  const schemes: Record<string, SecuritySchemeObject> = {};
+  for (const name of used) {
+    if (definitions[name]) schemes[name] = definitions[name];
+  }
+  if (Object.keys(schemes).length > 0) spec.securitySchemes = schemes;
+};
+
+type StripFields = { description: boolean; example: boolean };
+
+const stripSchema = (schema: CompressedSchema | undefined, strip: StripFields): void => {
+  if (!schema) return;
+  if (strip.description) delete schema.description;
+  if (strip.example) delete schema.example;
+  stripSchema(schema.items, strip);
+  for (const property of Object.values(schema.properties ?? {})) stripSchema(property, strip);
+  if (typeof schema.additionalProperties === 'object') stripSchema(schema.additionalProperties, strip);
+};
+
+/** Walks the output structurally, so a property *named* `description` is never removed. */
+const stripFields = (spec: MinifiedSwagger, strip: StripFields): void => {
+  forEachOperation(spec, (op) => {
+    if (strip.description) delete op.description;
+    forEachOperationSchema(op, (schema) => stripSchema(schema, strip));
+  });
+  for (const schema of Object.values(spec.schemas ?? {})) stripSchema(schema, strip);
+
+  if (strip.description && spec.securitySchemes) {
+    spec.securitySchemes = Object.fromEntries(
+      Object.entries(spec.securitySchemes).map(([name, scheme]) => {
+        const rest = { ...scheme };
+        delete rest.description;
+        return [name, rest];
+      })
+    );
+  }
+};
+
+/**
+ * Minifies the selected endpoints and applies `options`. Deprecation and ref
+ * handling need the source doc, so they run during extraction; the remaining
+ * options are transforms over the freshly built output.
+ */
+export const minifySwaggerWithOptions = (
+  selectedEndpointIds: string[],
+  doc: OpenApiDocument,
+  options: MinifyOptions = DEFAULT_MINIFY_OPTIONS
+): MinifiedSwagger => {
+  const compressOptions: CompressOptions = {
+    inlineRefs: options.inlineRefs,
+    dropDeprecated: options.dropDeprecated,
+  };
+  const output = minifySwaggerObject(selectedEndpointIds, doc, compressOptions);
+
+  if (!options.inlineRefs) {
+    const schemas = buildReferencedSchemas(output, doc, compressOptions);
+    if (Object.keys(schemas).length > 0) output.schemas = schemas;
+  }
+  if (options.keepSecuritySchemes) attachSecurity(output, doc);
+  if (options.stripDescriptions || options.stripExamples) {
+    stripFields(output, { description: options.stripDescriptions, example: options.stripExamples });
+  }
+
+  return output;
+};
+
+export const minifySwagger = (
+  selectedEndpointIds: string[],
+  doc: OpenApiDocument,
+  options: MinifyOptions = DEFAULT_MINIFY_OPTIONS
+): string => JSON.stringify(minifySwaggerWithOptions(selectedEndpointIds, doc, options), null, 2);
 
 export const fetchSwaggerFromUrl = async (
   url: string,

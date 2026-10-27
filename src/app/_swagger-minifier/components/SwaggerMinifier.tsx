@@ -35,36 +35,9 @@ const SwaggerMinifier: FC<SwaggerMinifierProps> = ({
       className={`grid grid-cols-1 gap-5 lg:grid-cols-[minmax(300px,var(--minifier-input-width))_auto_minmax(0,1fr)] lg:grid-rows-1 lg:gap-0 ${className}`.trim()}
     >
       <SwaggerInputPanel
-        inputMode={m.inputMode}
-        onInputModeChange={m.setInputMode}
-        rawJson={m.rawJson}
-        onRawJsonChange={m.setRawJson}
-        onFileUpload={m.onFileUpload}
+        m={m}
         onSnapshotSaved={onSnapshotSaved}
         onNavigateToCompareLatest={onNavigateToCompareLatest}
-        isFetchingUrl={m.isFetchingUrl}
-        urlFetchError={m.urlFetchError}
-        extensionAvailable={m.extensionAvailable}
-        onFetchFromUrl={m.onFetchFromUrl}
-        profiles={m.profiles}
-        selectedProfile={m.selectedProfile}
-        onSelectProfile={m.selectProfile}
-        onCreateProfile={m.createProfile}
-        onEditProfile={m.editProfile}
-        onDeleteProfile={m.deleteProfile}
-        parsed={m.parsed}
-        diagnostics={m.diagnostics}
-        allEndpoints={m.allEndpoints}
-        searchQuery={m.searchQuery}
-        onSearchQueryChange={m.setSearchQuery}
-        selectedMethods={m.selectedMethods}
-        onToggleMethod={m.toggleMethod}
-        selectedCount={m.selectedCount}
-        visibleAllSelected={m.visibleAllSelected}
-        onToggleSelectAllVisible={m.toggleSelectAllVisible}
-        filteredEndpoints={m.filteredEndpoints}
-        selectedIds={m.selectedIds}
-        onToggleSelection={m.toggleSelection}
       />
 
       <ResizeHandle
@@ -77,6 +50,12 @@ const SwaggerMinifier: FC<SwaggerMinifierProps> = ({
         hasParseError={Boolean(m.parsed.error)}
         selectedCount={m.selectedCount}
         minifiedOutput={m.minifiedOutput}
+        minifiedCompact={m.minifiedCompact}
+        outputSize={m.outputSize}
+        fullSpecSize={m.fullSpecSize}
+        minifyOptions={m.minifyOptions}
+        onMinifyOptionsChange={m.setMinifyOptions}
+        onBuildShareLink={m.buildShareLink}
         onDeselectEndpoint={m.toggleSelection}
       />
     </div>

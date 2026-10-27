@@ -34,6 +34,7 @@ export interface SchemaObject {
   pattern?: string;
   default?: unknown;
   example?: unknown;
+  deprecated?: boolean;
 }
 
 export interface ParameterObject {
@@ -50,6 +51,7 @@ export interface ParameterObject {
   minLength?: number;
   maxLength?: number;
   enum?: Array<string | number | boolean | null>;
+  deprecated?: boolean;
 }
 
 export interface MediaTypeObject {
@@ -74,10 +76,11 @@ export interface OperationObject {
   parameters?: ParameterObject[];
   requestBody?: RequestBodyObject;
   responses?: Record<string, ResponseObject>;
+  deprecated?: boolean;
   // Swagger 2.0 fields — unused by the minifier, read by the diagnostics pass.
   produces?: string[];
   consumes?: string[];
-  security?: Array<Record<string, string[]>>;
+  security?: SecurityRequirement[];
 }
 
 export interface PathItemObject {
@@ -102,15 +105,25 @@ export interface OpenApiDocument {
   paths?: Record<string, PathItemObject>;
   components?: {
     schemas?: Record<string, SchemaObject>;
+    securitySchemes?: Record<string, SecuritySchemeObject>;
   };
   definitions?: Record<string, SchemaObject>;
+  // Swagger 2.0 name for `components.securitySchemes`.
+  securityDefinitions?: Record<string, SecuritySchemeObject>;
+  security?: SecurityRequirement[];
 }
+
+export type SecurityRequirement = Record<string, string[]>;
+
+/** Passed through untouched — the minifier only filters and strips descriptions. */
+export type SecuritySchemeObject = Record<string, unknown>;
 
 export interface EndpointItem {
   id: string;
   path: string;
   method: HttpMethod;
   summary: string;
+  tags: string[];
 }
 
 export interface CompressedSchema {
@@ -145,6 +158,7 @@ export interface MinifiedOperation {
   description?: string;
   operationId?: string;
   tags?: string[];
+  security?: SecurityRequirement[];
   request?: MinifiedRequest;
   response?: CompressedSchema;
 }
@@ -167,4 +181,7 @@ export interface MinifiedSwagger {
     version: string;
   };
   paths: Record<string, MinifiedPathItem>;
+  /** Named schemas reached through `$ref`, present when refs are not inlined. */
+  schemas?: Record<string, CompressedSchema>;
+  securitySchemes?: Record<string, SecuritySchemeObject>;
 }

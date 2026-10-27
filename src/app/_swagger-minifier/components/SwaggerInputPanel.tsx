@@ -1,136 +1,72 @@
-import type { ChangeEvent, FC } from "react";
+import type { FC } from "react";
 import { GitCompare } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { SwaggerDiagnosticsPanel } from "@/components/swagger/SwaggerDiagnosticsPanel";
-import type { EndpointItem, HttpMethod } from "@/types/openapi";
-import type { OpenApiDiagnosticsReport } from "@/lib/openApiDiagnostics";
-import type { ParsedOpenApiInput } from "@/lib/openApiInput";
-import type { SwaggerProfile } from "@/lib/swaggerProfilesStorage";
+import type { SwaggerMinifierController } from "../hooks/useSwaggerMinifier";
 import { SwaggerEndpointList } from "./SwaggerEndpointList";
 import { SwaggerEndpointSearch } from "./SwaggerEndpointSearch";
 import { SwaggerInputModeToggle } from "./SwaggerInputModeToggle";
 import { SwaggerManualJsonInput } from "./SwaggerManualJsonInput";
 import { SwaggerParseStatus } from "./SwaggerParseStatus";
+import { SwaggerPresetMenu } from "./SwaggerPresetMenu";
 import { SwaggerUrlFetchForm } from "./SwaggerUrlFetchForm";
 
-type ProfileWriteResult =
-	| { ok: true; profile: SwaggerProfile }
-	| { ok: false; error: string };
-
 type SwaggerInputPanelProps = {
-	inputMode: "manual" | "url";
-	onInputModeChange: (mode: "manual" | "url") => void;
-	rawJson: string;
-	onRawJsonChange: (value: string) => void;
-	onFileUpload: (event: ChangeEvent<HTMLInputElement>) => void;
+	m: SwaggerMinifierController;
 	onSnapshotSaved?: () => void;
 	onNavigateToCompareLatest?: () => void;
-	isFetchingUrl: boolean;
-	urlFetchError: string;
-	extensionAvailable: boolean;
-	onFetchFromUrl: () => void;
-	profiles: SwaggerProfile[];
-	selectedProfile: SwaggerProfile | null;
-	onSelectProfile: (id: string | null) => void;
-	onCreateProfile: (input: {
-		name: string;
-		color: string;
-		url: string;
-		username: string;
-		password: string;
-	}) => Promise<ProfileWriteResult>;
-	onEditProfile: (
-		id: string,
-		patch: Partial<Omit<SwaggerProfile, "id">>,
-	) => Promise<ProfileWriteResult>;
-	onDeleteProfile: (id: string) => void;
-	parsed: ParsedOpenApiInput;
-	diagnostics: OpenApiDiagnosticsReport;
-	allEndpoints: EndpointItem[];
-	searchQuery: string;
-	onSearchQueryChange: (value: string) => void;
-	selectedMethods: HttpMethod[];
-	onToggleMethod: (method: HttpMethod) => void;
-	selectedCount: number;
-	visibleAllSelected: boolean;
-	onToggleSelectAllVisible: () => void;
-	filteredEndpoints: EndpointItem[];
-	selectedIds: Set<string>;
-	onToggleSelection: (id: string) => void;
 };
 
 export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
-	inputMode,
-	onInputModeChange,
-	rawJson,
-	onRawJsonChange,
-	onFileUpload,
+	m,
 	onSnapshotSaved,
 	onNavigateToCompareLatest,
-	isFetchingUrl,
-	urlFetchError,
-	extensionAvailable,
-	onFetchFromUrl,
-	profiles,
-	selectedProfile,
-	onSelectProfile,
-	onCreateProfile,
-	onEditProfile,
-	onDeleteProfile,
-	parsed,
-	diagnostics,
-	allEndpoints,
-	searchQuery,
-	onSearchQueryChange,
-	selectedMethods,
-	onToggleMethod,
-	selectedCount,
-	visibleAllSelected,
-	onToggleSelectAllVisible,
-	filteredEndpoints,
-	selectedIds,
-	onToggleSelection,
 }) => (
 	<Card flush className="flex min-h-[560px] flex-col overflow-auto max-h-full lg:min-h-0">
 		<div className="border-b border-line p-4">
 			<p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted">
 				// input
 			</p>
-			<SwaggerInputModeToggle inputMode={inputMode} onModeChange={onInputModeChange} />
+			<SwaggerInputModeToggle inputMode={m.inputMode} onModeChange={m.setInputMode} />
 
-			{inputMode === "manual" ? (
+			{m.inputMode === "manual" ? (
 				<SwaggerManualJsonInput
-					rawJson={rawJson}
-					onRawJsonChange={onRawJsonChange}
-					onFileUpload={onFileUpload}
+					rawJson={m.rawJson}
+					onRawJsonChange={m.setRawJson}
+					onFileUpload={m.onFileUpload}
+					onFileDrop={m.loadFile}
+					onPasteUrl={m.openPastedUrl}
 					onSnapshotSaved={onSnapshotSaved}
 				/>
 			) : (
 				<SwaggerUrlFetchForm
-					isFetchingUrl={isFetchingUrl}
-					urlFetchError={urlFetchError}
-					extensionAvailable={extensionAvailable}
-					onFetchFromUrl={onFetchFromUrl}
-					rawJson={rawJson}
+					isFetchingUrl={m.isFetchingUrl}
+					urlFetchError={m.urlFetchError}
+					extensionAvailable={m.extensionAvailable}
+					onFetchFromUrl={m.onFetchFromUrl}
+					rawJson={m.rawJson}
 					onSnapshotSaved={onSnapshotSaved}
-					profiles={profiles}
-					selectedProfile={selectedProfile}
-					onSelectProfile={onSelectProfile}
-					onCreateProfile={onCreateProfile}
-					onEditProfile={onEditProfile}
-					onDeleteProfile={onDeleteProfile}
+					profiles={m.profiles}
+					selectedProfile={m.selectedProfile}
+					onSelectProfile={m.selectProfile}
+					onCreateProfile={m.createProfile}
+					onEditProfile={m.editProfile}
+					onDeleteProfile={m.deleteProfile}
+					pendingProfileUrl={m.pendingProfileUrl}
+					onClearPendingProfileUrl={m.clearPendingProfileUrl}
 				/>
 			)}
 
 			<SwaggerParseStatus
-				error={parsed.error}
-				endpointCount={allEndpoints.length}
-				hasDoc={Boolean(parsed.doc)}
-				diagnostics={diagnostics}
+				error={m.parsed.error}
+				endpointCount={m.allEndpoints.length}
+				hasDoc={Boolean(m.parsed.doc)}
+				diagnostics={m.diagnostics}
+				fullSpecSize={m.fullSpecSize}
 			/>
 
-			<SwaggerDiagnosticsPanel report={diagnostics} className="mt-3" />
+			<SwaggerDiagnosticsPanel report={m.diagnostics} className="mt-3" />
 
 			{onNavigateToCompareLatest ? (
 				<div className="mt-3">
@@ -146,23 +82,45 @@ export const SwaggerInputPanel: FC<SwaggerInputPanelProps> = ({
 		</div>
 
 		<SwaggerEndpointSearch
-			searchQuery={searchQuery}
-			onSearchQueryChange={onSearchQueryChange}
-			selectedMethods={selectedMethods}
-			onToggleMethod={onToggleMethod}
-			selectedCount={selectedCount}
-			totalEndpoints={allEndpoints.length}
-			visibleAllSelected={visibleAllSelected}
-			onToggleSelectAllVisible={onToggleSelectAllVisible}
-			canToggleVisible={filteredEndpoints.length > 0}
-			endpoints={allEndpoints}
+			searchQuery={m.searchQuery}
+			onSearchQueryChange={m.setSearchQuery}
+			selectedMethods={m.selectedMethods}
+			onToggleMethod={m.toggleMethod}
+			selectedCount={m.selectedCount}
+			totalEndpoints={m.allEndpoints.length}
+			visibleAllSelected={m.visibleAllSelected}
+			onToggleSelectAllVisible={m.toggleSelectAllVisible}
+			canToggleVisible={m.filteredEndpoints.length > 0}
+			endpoints={m.allEndpoints}
+			groupMode={m.groupMode}
+			onGroupModeChange={m.setGroupMode}
+			sharedSelectionPending={m.sharedSelectionPending}
+			onDismissSharedSelection={m.dismissSharedSelection}
+			selectionActions={
+				<SwaggerPresetMenu
+					presets={m.presets}
+					presetMatches={m.presetMatches}
+					specKey={m.specKey}
+					selectedCount={m.selectedCount}
+					hasSpec={m.allEndpoints.length > 0}
+					onSavePreset={m.savePreset}
+					onApplyPreset={m.applyPreset}
+					onDeletePreset={m.deletePreset}
+				/>
+			}
 		/>
 
 		<SwaggerEndpointList
-			endpoints={filteredEndpoints}
-			selectedIds={selectedIds}
-			onToggleSelection={onToggleSelection}
-			diagnosticsByEndpoint={diagnostics.byEndpoint}
+			groups={m.endpointGroups}
+			groupMode={m.groupMode}
+			collapsedGroups={m.collapsedGroups}
+			onToggleGroupCollapsed={m.toggleGroupCollapsed}
+			onSetGroupCollapsed={m.setGroupCollapsed}
+			selectedIds={m.selectedIds}
+			onToggleSelection={m.toggleSelection}
+			onSetSelected={m.setEndpointsSelected}
+			onClearSearch={() => m.setSearchQuery("")}
+			diagnosticsByEndpoint={m.diagnostics.byEndpoint}
 		/>
 	</Card>
 );
